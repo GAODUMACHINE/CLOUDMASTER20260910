@@ -45,7 +45,20 @@
   function setMinorFlag(isMinor) {
     document.body.dataset.minor = isMinor ? 'true' : 'false';
   }
-  function notify(msg) { $('chatError').textContent = msg; }
+  // 可靠文本化：后端返回 400/422 的 detail 可能是数组/对象，绝不当对象直塞 textContent（避免 [object Object]）
+  function toText(v) {
+    if (typeof v === 'string') { return v; }
+    if (Array.isArray(v)) {
+      return v.filter(Boolean).map(function (it) { return (it && it.msg) ? it.msg : String(it); }).join('；');
+    }
+    if (v && typeof v === 'object') {
+      if (v.detail) { return toText(v.detail); }
+      if (v.message) { return v.message; }
+      try { return JSON.stringify(v); } catch (e2) { return String(v); }
+    }
+    return String(v);
+  }
+  function notify(msg) { var t = $('chatError'); if (t) { t.textContent = toText(msg); } }
   function showPanel(which) {
     $('registerPanel').classList.toggle('hidden', which !== 'register');
     $('chatPanel').classList.toggle('hidden', which !== 'chat');
@@ -72,14 +85,18 @@
       fetch(BASE + '/api/register', f()).
       then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); }).
       then(function (res) {
-        if (!res.ok) { notify(res.j && res.j.detail ? res.j.detail : '注册未完成'); return; }
+        if (!res.ok) {
+          notify(res.j && (res.j.detail || res.j.message) ? (res.j.detail || res.j.message) : '注册未完成');
+          return;
+        }
         state.key = res.j.profile_key;
         try { localStorage.setItem(KEY, state.key); } catch (e2) {}
         setMinorFlag(n < 18);
         showPanel('chat');
         addMsg('你好，我是 CloudMaster 陪伴助手。感觉怎么样？','ai');
         notify('');
-      });
+      }).
+      catch(function () { notify('无法连接后端，请确认服务已启动。'); });
     });
     refresh();
   }
@@ -107,7 +124,7 @@
         state.risk = j.risk_level || 'none';
         updateCrisis();
       }).
-      catch(function () { bubble.textContent = '（连接失败，请确认后端已启动）'; setTyping(false); }).
+      catch(function () { bubble.textContent = toText('（连接失败，请确认后端已启动）'); setTyping(false); }).
       finally(function () { send.disabled = false; });
     }
     send.addEventListener('click', go);

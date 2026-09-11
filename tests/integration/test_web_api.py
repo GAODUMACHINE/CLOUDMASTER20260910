@@ -97,3 +97,10 @@ def test_static_serves_cloud_glass(tmp_path, fake_llm_empathic):
     c, _, _ = _client(tmp_path, fake_llm_empathic)
     r = c.get("/web/cloud-glass/")
     assert r.status_code == 200 and "云端陪伴" in r.text
+
+
+def test_register_invalid_body_is_422(tmp_path, fake_llm_empathic):
+    # 无效/缺字段的注册体返回 422(校验)而非 400；detail 为数组，前端须渲染为可读文本(不得 [object Object])
+    c, _, _ = _client(tmp_path, fake_llm_empathic)
+    r = c.post("/api/register", json={"age": "abc"})
+    assert r.status_code == 422 and isinstance(r.json()["detail"], list)
