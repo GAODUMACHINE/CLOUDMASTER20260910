@@ -1,16 +1,6 @@
-"""AgentState（LangGraph TypedDict）——字段 schema 必须先经 ADR-001 评审。
-
-写入权限表（ADR-001）：
-  messages      各对话节点(add_messages)
-  risk_level    仅 crisis
-  next_agent    仅 supervisor
-  citations     仅 knowledge(operator.add，只增不删)
-  turn_count    仅 supervisor
-  user_profile  服务层注入，图内只读
-  usage_meta    仅 time_guard
-  crisis_basis  仅 crisis
-  agent_hops    仅 supervisor
-  review_decision 仅 human_review
+"""AgentState（LangGraph TypedDict）——schema 须经 ADR 评审。
+- ADR-001：基础字段 + 守卫顺序
+- ADR-003：audit_log / contact_log / next_followup（human_review 唯一写）
 """
 
 from __future__ import annotations
@@ -33,3 +23,6 @@ class AgentState(TypedDict, total=False):
     crisis_basis: dict[str, Any]
     agent_hops: int
     review_decision: str  # pending / approve / block
+    audit_log: Annotated[list[dict[str, Any]], operator.add]
+    contact_log: Annotated[list[dict[str, Any]], operator.add]
+    next_followup: dict[str, Any] | None

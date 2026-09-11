@@ -37,9 +37,14 @@ def _crisis(state: dict[str, Any], llm: Any) -> dict[str, Any]:
 def _human_review(state: dict[str, Any]) -> dict[str, Any]:
     from langchain_core.messages import AIMessage
 
+    from .crisis_chain import handle_review
+
     decision = state.get("review_decision") or "pending"
     note = "（L2 危机）人工审核结论：" + decision
-    return {"review_decision": decision, "messages": [AIMessage(note)]}
+    update: dict[str, Any] = {"review_decision": decision, "messages": [AIMessage(note)]}
+    if decision in ("approve", "block"):
+        update.update(handle_review(state.get("crisis_basis") or {}, decision))
+    return update
 
 
 def _after_time_guard(state: dict[str, Any]) -> str:
