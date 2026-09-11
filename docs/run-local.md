@@ -37,3 +37,11 @@
 - 密钥仅存 `.env`（gitignored）；代码零硬编码。
 - 不索取真名/照片/联系方式；<14 严禁；危机升级人工审核；不提供未审核热线；动效 reduce-motion 支持。
 - 涉及危机识别/用户数据的合流需 2 人 approve。
+## 启动失败？多半是执行策略拦截 .ps1
+- 报错「无法加载，因为在此系统上禁止运行脚本」→ 是 PowerShell 执行策略挡住 `.ps1`。
+- 解法：
+  1) 双击 `run_web.cmd`（已内置 `-ExecutionPolicy Bypass`）。
+  2) 或命令行一次性绕过：
+     powershell -NoProfile -ExecutionPolicy Bypass -File .\run_web.ps1
+  3) 或本用户放行一次：Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+- 也可完全绕过脚本，直接跑：& .\.venv\Scripts\python.exe -m uvicorn cloudmaster.server:app --host 127.0.0.1 --port 8000
