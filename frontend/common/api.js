@@ -49,7 +49,7 @@
   function toText(v) {
     if (typeof v === 'string') { return v; }
     if (Array.isArray(v)) {
-      return v.filter(Boolean).map(function (it) { return (it && it.msg) ? it.msg : String(it); }).join('；');
+      return v.filter(Boolean).map(function (it) { return itemText(it); }).join('；');
     }
     if (v && typeof v === 'object') {
       if (v.detail) { return toText(v.detail); }
@@ -57,6 +57,21 @@
       try { return JSON.stringify(v); } catch (e2) { return String(v); }
     }
     return String(v);
+  }
+  function fieldName(it) {
+    var loc = it && it.loc;
+    var last = loc && loc.length ? loc[loc.length - 1] : '';
+    return (typeof last === 'string') ? last : '字段';
+  }
+  function itemText(it) {
+    if (it && it.msg) {
+      var name = fieldName(it), m = it.msg;
+      if (m.indexOf('Field required') !== -1) { return '缺少必填字段：' + name; }
+      if (m.toLowerCase().indexOf('integer') !== -1) { return name + ' 必须是整数'; }
+      if (m.toLowerCase().indexOf('bool') !== -1) { return name + ' 必须是布尔值'; }
+      return name + '：' + m;
+    }
+    return String(it);
   }
   function notify(msg) { var t = $('chatError'); if (t) { t.textContent = toText(msg); } }
   function showPanel(which) {
@@ -108,6 +123,7 @@
     function go() {
       var text = input.value.trim();
       if (!text) return;
+      if (!state.key) { notify('请先完成年龄注册再开始对话。'); showPanel('register'); return; }
       input.value = '';
       send.disabled = true;
       setTyping(true);
