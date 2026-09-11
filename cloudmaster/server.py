@@ -6,17 +6,22 @@
 
 from __future__ import annotations
 
+from .config import settings
 from .graph import build_graph
 from .mailer import Mailer
-from .model import create_llm
+from .model import create_llm, create_stub_llm
 from .persistence import build_checkpointer
 from .profile_store import ProfileStore
 from .web_app import create_app
 
 
 def build_app():
-    """组装完整应用：真实图 + 持久化 checkpointer/store + 邮件桩 + Web。"""
-    graph = build_graph(create_llm(), checkpointer=build_checkpointer())
+    """组装完整应用：图 + 持久化 checkpointer/store + 邮件桩 + Web。
+
+    模型选择：settings.cm_stub（CM_STUB=1）→ 本地确定性 StubLLM（零额度/不触网，先跑通全流程）；
+    否则 → 真实 Qwen（需该模型已由工作空间对当前 key 授权）。"""
+    llm = create_stub_llm() if settings.cm_stub else create_llm()
+    graph = build_graph(llm, checkpointer=build_checkpointer())
     store = ProfileStore()
     return create_app(graph, store, Mailer())
 

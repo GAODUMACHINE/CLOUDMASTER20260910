@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     qwen_api_host: str = ""
     qwen_model: str = "qwen3.5-flash"
     qwen_base_url: str = ""
+    # CM_STUB=1 -> 用本地确定性 stub 模型跑通全流程（零额度/不触网），真实模型开通后再取消
+    cm_stub: bool = False
 
     @property
     def resolved_base_url(self) -> str:
