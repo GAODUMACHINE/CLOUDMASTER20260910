@@ -169,6 +169,7 @@ def test_high_risk_routes_to_human_review():
 from langgraph.checkpoint.memory import MemorySaver
 from cloudmaster.graph import build_app
 
+
 def test_full_loop_with_fake_llm(monkeypatch):
     monkeypatch.setattr("cloudmaster.graph.llm", build_fake_llm())
     app = build_app(checkpointer=MemorySaver())
