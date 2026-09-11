@@ -1,0 +1,17 @@
+# 密钥与环境
+.env
+.env.*
+!.env.example
+# 运行数据（严禁入库）
+*.sqlite3
+checkpoints/
+logs/
+data/private/
+# Python
+__pycache__/
+.venv/
+*.egg-info/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
