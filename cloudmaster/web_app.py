@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from . import service as svc
@@ -33,6 +35,9 @@ class EmailConfirmReq(BaseModel):
 
 def create_app(graph: Any, store: ProfileStore, mailer: Any = None, expected_token: str = "token") -> FastAPI:
     app = FastAPI(title="CLOUDMASTER", version="0.5.0")
+
+    _frontend = Path(__file__).resolve().parent.parent / "frontend"
+    app.mount("/web", StaticFiles(directory=str(_frontend), html=True), name="web")
 
     @app.post("/api/register")
     def api_register(req: RegisterReq) -> dict:

@@ -91,3 +91,15 @@ def test_email_reject_not_sent(tmp_path, fake_llm_empathic):
     )
     assert r.status_code == 200 and r.json()["sent"] is False
     assert mailer.sent == []
+
+
+def test_static_serves_soft_pastel(tmp_path, fake_llm_empathic):
+    c, _, _ = _client(tmp_path, fake_llm_empathic)
+    r = c.get("/web/soft-pastel/")
+    assert r.status_code == 200 and "CloudMaster" in r.text
+
+
+def test_static_serves_cloud_glass(tmp_path, fake_llm_empathic):
+    c, _, _ = _client(tmp_path, fake_llm_empathic)
+    r = c.get("/web/cloud-glass/")
+    assert r.status_code == 200 and "云端陪伴" in r.text
