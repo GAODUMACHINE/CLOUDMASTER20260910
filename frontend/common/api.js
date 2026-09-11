@@ -95,9 +95,10 @@
     btn.addEventListener('click', function () {
       var n = parseInt(age.value, 10);
       if (!n || n < 14) { notify('年龄不足 14 岁无法使用：本产品不处理 <14 岁数据。'); return; }
-      var body = { age: n, guardian_contact_available: false, dependency_tendency: false };
-      if (n < 18) { body.guardian_contact_available = gb.checked; }
-      fetch(BASE + '/api/register', f()).
+      var payload = { age: n, guardian_contact_available: false, dependency_tendency: false };
+      if (n < 18) { payload.guardian_contact_available = gb.checked; }
+      fetch(BASE + '/api/register', { method: 'POST',
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).
       then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); }).
       then(function (res) {
         if (!res.ok) {
@@ -115,7 +116,6 @@
     });
     refresh();
   }
-  function f() { return { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '' }; }
 
   /* ---- chat ---- */
   function setupChat() {
