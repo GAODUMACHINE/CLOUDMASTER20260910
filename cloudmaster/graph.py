@@ -13,8 +13,6 @@ from .safety.crisis import classify, risk_level_of
 from .state import AgentState
 from .supervisor import supervisor_node
 
-_AGENTS = {}
-
 
 def _last_user_text(state: dict[str, Any]) -> str:
     for m in reversed(state.get("messages") or []):
@@ -60,8 +58,17 @@ def _after_supervisor(state: dict[str, Any]) -> str:
     return state.get("next_agent", "end")
 
 
-def build_graph(llm: Any, now_fn: Callable[[], datetime] | None = None, checkpointer: Any = None):
+def build_graph(
+    llm: Any,
+    now_fn: Callable[[], datetime] | None = None,
+    checkpointer: Any = None,
+    retriever: Any = None,
+):
     """构造 LangGraph。llm 在测试中必须为 fake ChatModel，勿传生产模型于测试。"""
+    from .rag.stub import StubRetriever
+
+    if retriever is None:
+        retriever = StubRetriever()
 
     def tg(s: dict[str, Any]) -> dict[str, Any]:
         return _time_guard(s, now_fn)
@@ -72,7 +79,7 @@ def build_graph(llm: Any, now_fn: Callable[[], datetime] | None = None, checkpoi
     g.add_node("human_review", _human_review)
     g.add_node("supervisor", supervisor_node)
     g.add_node("empathic", _make_empathic(llm))
-    g.add_node("knowledge", _make_knowledge(llm))
+    g.add_node("knowledge", _make_knowledge(llm, retriever))
 
     g.add_edge(START, "time_guard")
     g.add_conditional_edges("time_guard", _after_time_guard, {"end": END, "crisis": "crisis"})
@@ -99,7 +106,7 @@ def _make_empathic(llm: Any):
     return lambda s: empathic_node(s, llm)
 
 
-def _make_knowledge(llm: Any):
+def _make_knowledge(llm: Any, retriever: Any):
     from .agents.knowledge import knowledge_node
 
-    return lambda s: knowledge_node(s, llm)
+    return lambda s: knowledge_node(s, llm, retriever)
