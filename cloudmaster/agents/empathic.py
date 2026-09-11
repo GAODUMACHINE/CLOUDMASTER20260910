@@ -1,4 +1,4 @@
-"""empathic 节点——支持性陪伴回复。prompt 禁区：不诊断/不开药/不评判。"""
+"""empathic 节点——v0.1.0 单 Agent ReAct 承载。prompt 禁区：不诊断/不开药/不评判。"""
 
 from __future__ import annotations
 
@@ -6,11 +6,8 @@ from typing import Any
 
 from langchain_core.messages import AIMessage
 
-EMPATHIC_PROMPT = (
-    "你是一名面向18-25岁青年的心理陪伴助手。只做支持性陪伴、情绪疏导与心理科普，"
-    "绝不给出诊断结论、用药建议，也不评判用户。请围绕用户当前表达共情、安抚并给一小节可执行建议。"
-    "用户的话：{text}"
-)
+from ..react import react_agent
+
 LOW_RISK_TAIL = (
     "\n\n（若情绪持续加重或出现伤害自己的念头，请及时联系可信任的人，或使用审核台提供的紧急资源。）"
 )
@@ -32,8 +29,7 @@ def empathic_node(state: dict[str, Any], llm: Any) -> dict[str, Any]:
     text = _last_user_text(state)
     if risk == "high":
         return {"messages": [AIMessage(HIGH_RISK_SUPPORT)]}
-    reply = llm.invoke(EMPATHIC_PROMPT.format(text=text))
-    content = str(getattr(reply, "content", ""))
+    content = react_agent(llm, text)
     if risk == "low":
         content = content + LOW_RISK_TAIL
     return {"messages": [AIMessage(content)]}
