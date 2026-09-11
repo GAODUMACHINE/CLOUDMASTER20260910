@@ -1,6 +1,6 @@
 [project]
 name = "cloudmaster"
-version = "0.1.0"
+version = "1.0.0"
 description = "面向18-25岁青年的AI心理陪伴与疏导助手（不做诊断/用药建议）"
 requires-python = ">=3.11"
 dependencies = [
@@ -17,6 +17,7 @@ dev = [
     "pydantic-settings>=2",
     "python-dotenv>=1",
     "langgraph-checkpoint-sqlite>=2",
+    "fastapi>=0.110",
 ]
 
 [dependency-groups]
@@ -35,7 +36,8 @@ select = ["E", "F", "I", "W", "UP", "B"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
-addopts = "-q --strict-markers"
+addopts = "-q --strict-markers -m \"not eval\""
 markers = [
     "safety: 危机场景回归，失败禁止合并",
+    "eval: 慢速评估归档，日常不跑",
 ]
