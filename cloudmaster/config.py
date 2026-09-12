@@ -12,7 +12,9 @@ class Settings(BaseSettings):
 
     qwen_api_key: str = ""
     qwen_api_host: str = ""
-    qwen_model: str = "qwen3.5-flash"
+    # 生产默认 qwen-flash：首 token P50≈0.3s，满足 TC-PERF-001（≤2s）。
+    # qwen3.5-flash 为思考模型（实测首 token≈14s），仅在明确需要推理质量时手动切换。
+    qwen_model: str = "qwen-flash"
     qwen_base_url: str = ""
     # CM_STUB=1 -> 用本地确定性 stub 模型跑通全流程（零额度/不触网），真实模型开通后再取消
     cm_stub: bool = False
