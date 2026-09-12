@@ -9,6 +9,7 @@
   'use strict';
   var BASE = (window.CM_API_BASE || '').replace(/\/+$/, '');
   var KEY = 'cm_profile_key';
+  var MINOR_KEY = 'cm_is_minor';
   var state = { key: null, risk: 'none' };
 
   function $(id) { return document.getElementById(id); }
@@ -78,6 +79,18 @@
     $('registerPanel').classList.toggle('hidden', which !== 'register');
     $('chatPanel').classList.toggle('hidden', which !== 'chat');
   }
+  /* ---- 设置与资源面板（申诉入口 / 一键退出 / 转介资源） ---- */
+  function showSettings(on) {
+    var panel = $('settingsPanel');
+    if (!panel) return;
+    panel.classList.toggle('hidden', !on);
+    if (on) {
+      $('chatPanel').classList.add('hidden');
+      $('registerPanel').classList.add('hidden');
+    } else {
+      showPanel(state.key ? 'chat' : 'register');
+    }
+  }
 
   /* ---- 头像逻辑：注册年龄门 ---- */
   function setupRegister() {
@@ -107,6 +120,7 @@
         }
         state.key = res.j.profile_key;
         try { localStorage.setItem(KEY, state.key); } catch (e2) {}
+        try { localStorage.setItem(MINOR_KEY, n < 18 ? '1' : '0'); } catch (e3) {}
         setMinorFlag(n < 18);
         showPanel('chat');
         addMsg('你好，我是 CloudMaster 陪伴助手。感觉怎么样？','ai');
@@ -178,10 +192,89 @@
     }
   }
 
+  /* ---- 设置与资源：转介资源 / 申诉与投诉举报 / 一键删除退出 ---- */
+  function setupSettings() {
+    var open = $('openSettings'), close = $('closeSettings');
+    if (open) open.addEventListener('click', function () { showSettings(true); });
+    if (close) close.addEventListener('click', function () { showSettings(false); });
+
+    // 资源与申诉类型（后端下发；红线：不含任何真实热线号码）
+    fetch(BASE + '/api/resources').
+    then(function (r) { return r.json(); }).
+    then(function (j) {
+      var ul = $('resourceList');
+      if (ul && j && j.entries) {
+        ul.innerHTML = '';
+        j.entries.forEach(function (e) {
+          var li = el('li');
+          li.appendChild(el('strong', null, e.title + '：'));
+          li.appendChild(document.createTextNode(e.detail || ''));
+          ul.appendChild(li);
+        });
+      }
+      var sel = $('appealKind');
+      if (sel && j && j.appeals && j.appeals.kinds) {
+        sel.innerHTML = '';
+        Object.keys(j.appeals.kinds).forEach(function (k) {
+          var o = el('option', null, j.appeals.kinds[k]);
+          o.value = k;
+          sel.appendChild(o);
+        });
+      }
+    }).
+    catch(function () { /* 资源加载失败不阻断对话 */ });
+
+    var ab = $('appealBtn');
+    if (ab) ab.addEventListener('click', function () {
+      var msg = $('appealMsg'), text = $('appealText').value.trim();
+      if (!text) { msg.textContent = '请先填写申诉说明。'; return; }
+      ab.disabled = true;
+      fetch(BASE + '/api/appeal', { method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: $('appealKind').value, text: text, profile_key: state.key || '' }) }).
+      then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); }).
+      then(function (res) {
+        if (!res.ok) {
+          msg.textContent = toText((res.j && (res.j.detail || res.j.message)) || '提交失败');
+          return;
+        }
+        $('appealText').value = '';
+        msg.textContent = '已受理，工单号 ' + res.j.ticket_id + '；我们会按流程跟进。';
+      }).
+      catch(function () { msg.textContent = '无法连接后端，请确认服务已启动。'; }).
+      finally(function () { ab.disabled = false; });
+    });
+
+    var db = $('deleteBtn');
+    if (db) db.addEventListener('click', function () {
+      var msg = $('deleteMsg');
+      if (!state.key) { msg.textContent = '当前没有可删除的匿名数据。'; return; }
+      if (!window.confirm('确定删除你的匿名画像与本机会话数据吗？该操作不可恢复。')) return;
+      db.disabled = true;
+      fetch(BASE + '/api/profile/' + encodeURIComponent(state.key), { method: 'DELETE' }).
+      then(function (r) { return r.json(); }).
+      then(function () {
+        try { localStorage.removeItem(KEY); } catch (e2) {}
+        try { localStorage.removeItem(MINOR_KEY); } catch (e3) {}
+        state.key = null;
+        state.risk = 'none';
+        $('chatMessages').innerHTML = '';
+        setMinorFlag(false);
+        updateCrisis();
+        msg.textContent = '已删除，你已退出。';
+        showSettings(false);
+      }).
+      catch(function () { msg.textContent = '删除失败，请稍后重试。'; }).
+      finally(function () { db.disabled = false; });
+    });
+  }
+
   function init() {
     try { state.key = localStorage.getItem(KEY); } catch (e) {}
     if (state.key) {
-      var savedMin = document.body.dataset.minor;
+      var minor = '0';
+      try { minor = localStorage.getItem(MINOR_KEY) || '0'; } catch (e2) {}
+      setMinorFlag(minor === '1');
       showPanel('chat');
       addMsg('欢迎回来，我可以继续陪你聊聊。','ai');
     } else {
@@ -191,6 +284,7 @@
     setupChat();
     updateCrisis();
     setupDisclosure();
+    setupSettings();
   }
   if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); }
   else { init(); }

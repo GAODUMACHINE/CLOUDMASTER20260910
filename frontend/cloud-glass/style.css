@@ -89,3 +89,22 @@ h2{font-size:19px; margin:0 0 var(--sp-3); font-weight:600; color:var(--ink-2)}
 .foot{width:100%; max-width:620px; text-align:center; padding:var(--sp-4); font-size:11.5px; color:var(--faint); line-height:1.7}
 @media (max-width:560px){.top{padding-top:var(--sp-4)}.card{padding:var(--sp-4)}.messages{height:320px}.bubble{max-width:88%}}
 @media (prefers-reduced-motion: reduce){*,*::before,*::after{animation:none!important; transition:none!important; scroll-behavior:auto!important}.typing .td{animation:none}}
+
+/* ---- v1.1.0：设置与资源面板（申诉入口 / 一键退出 / 转介资源） ---- */
+.ghost{margin-top:var(--sp-3); width:100%; padding:11px; border-radius:var(--r-md); cursor:pointer; font-size:14px; font-weight:600; color:var(--ink-2); background:rgba(255,255,255,.55); border:1px solid var(--glass-line); box-shadow:var(--glass-highlight); transition:filter .2s, transform .15s}
+.ghost:hover{filter:brightness(1.03); transform:translateY(-1px)}
+.ghost:focus-visible{outline:none; box-shadow:0 0 0 3px rgba(2,80,140,.45)}
+.block{margin-bottom:var(--sp-4); padding-bottom:var(--sp-3); border-bottom:1px dashed rgba(95,168,216,.25)}
+.block:last-of-type{border-bottom:0}
+.block h3{margin:0 0 var(--sp-2); font-size:15px; color:var(--ink-2); font-weight:600}
+.res-list{margin:0; padding-left:1.1em; font-size:13.5px; color:var(--muted); line-height:1.7}
+.res-list li{margin-bottom:4px}
+.res-list strong{color:var(--ink-2); font-weight:600}
+.danger{width:100%; padding:13px; border:0; border-radius:var(--r-md); cursor:pointer; font-size:15px; font-weight:600; color:#5A1F16; background:linear-gradient(135deg,#F0C0B2,#E8A794); box-shadow:0 8px 20px rgba(192,92,75,.28), inset 0 1px 0 rgba(255,255,255,.6); transition:filter .2s, transform .15s}
+.danger:hover{filter:brightness(1.03); transform:translateY(-1px)}
+.danger:focus-visible{outline:none; box-shadow:0 0 0 3px rgba(140,50,30,.45)}
+.field.small{margin:var(--sp-3) 0}
+.field.small>span,.field.small{font-size:13px}
+.field select,.field textarea{width:100%; padding:12px 14px; border-radius:var(--r-md); border:1px solid rgba(95,168,216,.28); background:rgba(255,255,255,.8); color:var(--ink); font-size:14.5px; font-family:inherit}
+.field textarea{resize:vertical; line-height:1.6}
+.field select:focus,.field textarea:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(95,168,216,.20)}

@@ -47,6 +47,44 @@
         <button id="sendBtn" class="primary">发送</button>
       </div>
       <p class="privacy micro">匿名使用 · 不记录真实身份 · 你的状态会按风险分级处理</p>
+      <button id="openSettings" class="ghost">设置与资源 · 申诉入口</button>
+    </section>
+
+    <section id="settingsPanel" class="card panel hidden">
+      <h2>设置与资源</h2>
+
+      <div class="block">
+        <h3>求助与转介资源</h3>
+        <p class="privacy">本页不提供未经人工审核的热线号码。紧急情况请拨打当地急救电话或就近就医。</p>
+        <ul id="resourceList" class="res-list"></ul>
+      </div>
+
+      <div class="block">
+        <h3>申诉与投诉举报</h3>
+        <p class="privacy">未成年人模式误判、内容问题、隐私与数据使用问题均可提交；返回可追踪工单号。</p>
+        <label class="field small">类型
+          <select id="appealKind"></select>
+        </label>
+        <label class="field small">说明
+          <textarea id="appealText" rows="3" placeholder="请描述你遇到的问题（无需填写姓名或联系方式）"></textarea>
+        </label>
+        <button id="appealBtn" class="primary">提交申诉</button>
+        <p id="appealMsg" class="privacy micro"></p>
+      </div>
+
+      <div class="block">
+        <h3>隐私与退出</h3>
+        <p class="privacy">一键删除：清除你的匿名画像与本机会话数据（不可恢复）。</p>
+        <button id="deleteBtn" class="danger">删除我的数据并退出</button>
+        <p id="deleteMsg" class="privacy micro"></p>
+      </div>
+
+      <div class="block">
+        <h3>产品边界说明</h3>
+        <p class="privacy">CloudMaster 是 AI 陪伴助手，不是真人也不是医生：不做诊断、不提供医疗或用药建议、不评判。识别到极端情绪或自伤风险时会中断自动回复并转人工审核。使用时长与未成年人模式按合规要求执行。</p>
+      </div>
+
+      <button id="closeSettings" class="ghost">返回对话</button>
     </section>
   </main>
 
