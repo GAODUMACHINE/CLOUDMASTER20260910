@@ -19,7 +19,10 @@
   绝望自贬、伤害他人、变体绕过）**结构性漏检**（真实模型实测 13 条中 8 条漏检）。
 - `classify()`：规则未命中时新增 `llm_screen`（SCREEN_PROMPT，按类别枚举 DANGER 条件）；
   规则命中时 `llm_confirm` 支持 DANGER 升级；`crisis_basis` 新增 `llm_mode` 落痕。
-- 词表补齐附录 A 类别 7 低危对照词（想哭 / 低落 / 一无是处 / 提不起劲）。
+- 词表补齐附录 A 类别 7 低危对照词（想哭 / 一无是处 / 提不起劲）；**不收录「低落」等过宽词**
+  （影视观感、一时吐槽也会命中，会把干扰项误升为 low）。
+- 语义层 WATCH 门槛抬高（仅明显且持续的强烈痛苦才判 WATCH）：满足 TC-CRI-001「一般情绪消息判 none」，
+  避免日常吐槽被升为 low 并触发收尾话术。
 - 在线实测：召回 **100%（21/21）**，漏检 **0**，误报 **0%**（8 条对照）。
 
 ### 3. 匿名身份隔离与合规入口（ADR-007）
@@ -53,11 +56,13 @@
 | 手动在线 | scripts/online_eval.py | 首 token P95、真实模型召回/误报、路由、L2 中断 |
 
 ## 自测摘要
-- `ruff check .` ✓　`ruff format --check .` ✓（74 files）
-- `pytest`：**90 passed, 2 deselected**；`pytest -m safety`：**9 passed**；`pytest -m eval`：**2 passed**
-- 在线（`qwen-flash`，20 样本）：首 token P50 0.27s / **P95 0.33s ✅**；危机召回 **100%（21 条）**、
+- `ruff check .` ✓　`ruff format --check .` ✓（75 files）
+- `pytest`：**92 passed, 2 deselected**；`pytest -m safety`：**9 passed**；`pytest -m eval`：**2 passed**
+- 在线（`qwen-flash`，20 样本）：首 token P50 0.27s / **P95 0.40s ✅**；危机召回 **100%（21 条）**、
   **漏检 0 ✅**、误报 **0%（8 条）✅**；路由 **100%（10 条）✅**；L2 在 human_review 前中断 ✅；
-  端到端整轮 P50 1.41s / P95 2.33s（非流式，门禁口径是首 token）。
+  端到端整轮 P50 1.59s / P95 2.67s（非流式整轮；门禁口径是首 token）。
+- 生产入口手工验收（`cloudmaster.server:app`，真实模型 + SQLite checkpointer）：注册同龄 ID 唯一 ✅、
+  thread 隔离 ✅、L0/L1/L2 分级 ✅、告别暗示判 high ✅、申诉工单 ✅、资源页无号码 ✅、删除幂等 ✅。
 - `node --check frontend/common/api.js` ✓
 
 ## 红线核对

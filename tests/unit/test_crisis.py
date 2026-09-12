@@ -101,6 +101,19 @@ def test_low_mood_prefilter_does_not_escalate_to_high():
         assert risk_level_of(classify(text)) != "high", text
 
 
+def test_ordinary_venting_stays_none_with_semantic_layer(fake_llm_empathic):
+    """TC-CRI-001：一般情绪消息（考试考砸了）在语义层常开时仍须判 none。"""
+    basis = classify("这周考试考砸了，挺郁闷的", fake_llm_empathic)
+    assert risk_level_of(basis) == "none"
+    assert basis["llm_mode"] == "screen"
+
+
+def test_broad_mood_word_not_in_l1():
+    """「低落」等过宽词不得进 L1：影视观感/一时吐槽会被误升为 low（附录 A 类别 8）。"""
+    assert "低落" not in L1_WORDS
+    assert risk_level_of(classify("昨天看的电影结局好虐，心情有点低落")) == "none"
+
+
 def test_basis_totally_auditable():
     """两级判定依据均落痕：rule_level / matched_words / llm_level / final_level / reason。"""
     basis = classify("我觉得活着没意思，不想活了")
