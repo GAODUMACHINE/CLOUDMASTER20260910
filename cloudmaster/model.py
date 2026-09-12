@@ -40,8 +40,9 @@ class StubLLM:
         return _StubReply(self._decide(prompt))
 
     def _decide(self, prompt: str) -> str:
-        # 危机复核 prompt（CONFIRM_PROMPT，含"危机识别复核"）→ 常规话术返回 SAFE，避免误升级
-        if "危机识别复核" in prompt:
+        # 危机 LLM 层两种 prompt：复核（CONFIRM_PROMPT）/ 语义筛查（SCREEN_PROMPT）→ 返回 SAFE，
+        # 完全交给规则词表判定，避免替身误升级（离线替身不承担语义召回，生产中由真实模型承担）。
+        if "危机识别复核" in prompt or "语义筛查" in prompt:
             return "SAFE"
         # 普通陪伴（REACT_PROMPT 内含「用户的话：…」）→ 确定性支持性回复
         text = prompt.split("用户的话：", 1)[-1].strip()
