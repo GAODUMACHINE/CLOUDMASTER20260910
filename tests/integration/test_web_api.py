@@ -96,7 +96,10 @@ def test_email_reject_not_sent(tmp_path, fake_llm_empathic):
 def test_static_serves_cloud_glass(tmp_path, fake_llm_empathic):
     c, _, _ = _client(tmp_path, fake_llm_empathic)
     r = c.get("/web/cloud-glass/")
-    assert r.status_code == 200 and "云端陪伴" in r.text
+    assert r.status_code == 200
+    # 品牌标题（大标题 + 页面 title）锁定为「CloudMaster · 云上高士」
+    assert '<h1 class="brand">CloudMaster<span class="dot"> · </span>云上高士</h1>' in r.text
+    assert "<title>CloudMaster · 云上高士</title>" in r.text
 
 
 def test_register_invalid_body_is_422(tmp_path, fake_llm_empathic):
