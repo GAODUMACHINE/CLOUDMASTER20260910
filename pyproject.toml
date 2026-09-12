@@ -1,6 +1,6 @@
 [project]
 name = "cloudmaster"
-version = "1.0.0"
+version = "1.1.0"
 description = "面向18-25岁青年的AI心理陪伴与疏导助手（不做诊断/用药建议）"
 requires-python = ">=3.11"
 dependencies = [

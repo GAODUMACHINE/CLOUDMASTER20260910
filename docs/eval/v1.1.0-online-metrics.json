@@ -1,0 +1,30 @@
+{
+  "latency": {
+    "n": 20,
+    "first_p50": 0.2739448000000948,
+    "first_p95": 0.3302272000000812,
+    "first_max": 0.38546070000006694,
+    "total_p50": 0.9967054000001099,
+    "total_p95": 1.8734713000001193
+  },
+  "crisis": {
+    "recall": 1.0,
+    "misses": [],
+    "low_not_detected": [],
+    "false_positive_rate": 0.0,
+    "false_positives": [],
+    "n_high": 21,
+    "n_control": 8
+  },
+  "route": {
+    "n": 10,
+    "accuracy": 1.0,
+    "wrong": []
+  },
+  "e2e": {
+    "n": 20,
+    "p50": 1.4104758999999376,
+    "p95": 2.3321240000000216,
+    "l2_interrupt_ok": true
+  }
+}
