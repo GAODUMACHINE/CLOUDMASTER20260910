@@ -2,93 +2,111 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F6F9FB">
+<meta name="color-scheme" content="light">
 <title>CloudMaster · 云上高士</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header class="top">
-    <h1 class="brand">CloudMaster<span class="dot"> · </span>云上高士</h1>
-    <p class="brand-sub">一处可以放松倾诉的云端陪伴</p>
-    <p class="ai-note">内容由 AI 生成 · 仅供陪伴参考，不作心理/医疗诊断</p>
-  </header>
+  <div class="shell">
+    <header class="appbar">
+      <svg class="mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
+      <h1 class="brand">CloudMaster<span class="dot"> · </span>云上高士</h1>
+      <p class="ai-note">内容由 AI 生成 · 仅供陪伴参考，不作心理/医疗诊断</p>
+    </header>
+
+    <main>
+      <section id="registerPanel" class="screen hidden">
+        <div class="sheet sheet-narrow">
+          <p class="kicker">一处可以放松倾诉的云端陪伴</p>
+          <h2>开始前，请确认你的年龄</h2>
+          <p class="privacy">匿名使用：我们不索要真实姓名、照片或联系方式。</p>
+          <label class="field">年龄
+            <input id="age" type="number" min="0" max="100" placeholder="请输入年龄">
+          </label>
+          <p id="ageReject" class="reject hidden">未满 14 岁无法使用：本产品不处理 <14 岁数据。</p>
+          <div id="guardianRow" class="guardian-row hidden">
+            <label><input id="guardianBox" type="checkbox"> 我确认使用期间有监护人/家长在场或在旁</label>
+          </div>
+          <button id="regBtn" class="primary">开始陪伴</button>
+          <p id="chatError" class="error"></p>
+          <p class="smallprint">内容由 AI 生成 · 紧急风险走人工审核 · 提供来源虚构图谱，不提供未审核热线</p>
+        </div>
+      </section>
+
+      <section id="chatPanel" class="screen hidden">
+        <div id="crisisBanner" class="crisis hidden">
+          <h3 id="crisisTitle"></h3>
+          <p id="crisisText"></p>
+        </div>
+        <div id="chatMessages" class="messages" aria-live="polite"></div>
+        <div id="typing" class="typing"><span class="td"></span><span class="td"></span><span class="td"></span>正在输入…</div>
+        <div class="composer">
+          <div class="input-row">
+            <input id="input" type="text" placeholder="说说你现在的心情…" aria-label="输入你的话">
+            <button id="sendBtn" class="send" aria-label="发送">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/></svg>
+            </button>
+          </div>
+          <div class="composer-meta">
+            <span class="privacy micro">匿名使用 · 不记录真实身份 · 你的状态会按风险分级处理</span>
+            <button id="openSettings" class="linklike">设置与资源 · 申诉入口</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="settingsPanel" class="screen hidden">
+        <div class="sheet">
+          <div class="sheet-head">
+            <h2>设置与资源</h2>
+            <button id="closeSettings" class="linklike">返回对话</button>
+          </div>
+
+          <div class="block">
+            <h3>求助与转介资源</h3>
+            <p class="privacy">本页不提供未经人工审核的热线号码。紧急情况请拨打当地急救电话或就近就医。</p>
+            <ul id="resourceList" class="res-list"></ul>
+          </div>
+
+          <div class="block">
+            <h3>申诉与投诉举报</h3>
+            <p class="privacy">未成年人模式误判、内容问题、隐私与数据使用问题均可提交；返回可追踪工单号。</p>
+            <label class="field small">类型
+              <select id="appealKind"></select>
+            </label>
+            <label class="field small">说明
+              <textarea id="appealText" rows="3" placeholder="请描述你遇到的问题（无需填写姓名或联系方式）"></textarea>
+            </label>
+            <button id="appealBtn" class="primary compact">提交申诉</button>
+            <p id="appealMsg" class="privacy micro"></p>
+          </div>
+
+          <div class="block">
+            <h3>隐私与退出</h3>
+            <p class="privacy">一键删除：清除你的匿名画像与本机会话数据（不可恢复）。</p>
+            <button id="deleteBtn" class="danger">删除我的数据并退出</button>
+            <p id="deleteMsg" class="privacy micro"></p>
+          </div>
+
+          <div class="block">
+            <h3>产品边界说明</h3>
+            <p class="privacy">CloudMaster 是 AI 陪伴助手，不是真人也不是医生：不做诊断、不提供医疗或用药建议、不评判。识别到极端情绪或自伤风险时会中断自动回复并转人工审核。使用时长与未成年人模式按合规要求执行。</p>
+          </div>
+
+          <p class="smallprint">内容由 AI 生成 · 紧急风险走人工审核 · 提供来源虚构图谱，不提供未审核热线</p>
+        </div>
+      </section>
+    </main>
+  </div>
 
   <div id="disclosure" class="disclosure hidden">
     <div class="dlg">
+      <h2>开始之前</h2>
       <p>本页面内容由 AI 生成。它是一位陪伴助手，不是真人也不是医生：不做诊断、不提供医疗建议；紧急风险会升级给人工审核台。</p>
-      <button id="disclosureOk" class="primary">我知道了</button>
+      <button id="disclosureOk" class="primary compact">我知道了</button>
     </div>
   </div>
-
-  <main>
-    <section id="registerPanel" class="card panel hidden">
-      <h2>开始前，请确认你的年龄</h2>
-      <p class="privacy">匿名使用：我们不索要真实姓名、照片或联系方式。</p>
-      <label class="field">年龄
-        <input id="age" type="number" min="0" max="100" placeholder="请输入年龄">
-      </label>
-      <p id="ageReject" class="reject hidden">未满 14 岁无法使用：本产品不处理 <14 岁数据。</p>
-      <div id="guardianRow" class="guardian-row hidden">
-        <label><input id="guardianBox" type="checkbox"> 我确认使用期间有监护人/家长在场或在旁</label>
-      </div>
-      <button id="regBtn" class="primary">开始陪伴</button>
-      <p id="chatError" class="error"></p>
-    </section>
-
-    <section id="chatPanel" class="card panel hidden">
-      <div id="crisisBanner" class="crisis hidden">
-        <h3 id="crisisTitle"></h3>
-        <p id="crisisText"></p>
-      </div>
-      <div id="chatMessages" class="messages" aria-live="polite"></div>
-      <div id="typing" class="typing"><span class="td"></span><span class="td"></span><span class="td"></span>正在输入…</div>
-      <div class="input-row">
-        <input id="input" type="text" placeholder="说说你现在的心情…" aria-label="输入你的话">
-        <button id="sendBtn" class="primary">发送</button>
-      </div>
-      <p class="privacy micro">匿名使用 · 不记录真实身份 · 你的状态会按风险分级处理</p>
-      <button id="openSettings" class="ghost">设置与资源 · 申诉入口</button>
-    </section>
-
-    <section id="settingsPanel" class="card panel hidden">
-      <h2>设置与资源</h2>
-
-      <div class="block">
-        <h3>求助与转介资源</h3>
-        <p class="privacy">本页不提供未经人工审核的热线号码。紧急情况请拨打当地急救电话或就近就医。</p>
-        <ul id="resourceList" class="res-list"></ul>
-      </div>
-
-      <div class="block">
-        <h3>申诉与投诉举报</h3>
-        <p class="privacy">未成年人模式误判、内容问题、隐私与数据使用问题均可提交；返回可追踪工单号。</p>
-        <label class="field small">类型
-          <select id="appealKind"></select>
-        </label>
-        <label class="field small">说明
-          <textarea id="appealText" rows="3" placeholder="请描述你遇到的问题（无需填写姓名或联系方式）"></textarea>
-        </label>
-        <button id="appealBtn" class="primary">提交申诉</button>
-        <p id="appealMsg" class="privacy micro"></p>
-      </div>
-
-      <div class="block">
-        <h3>隐私与退出</h3>
-        <p class="privacy">一键删除：清除你的匿名画像与本机会话数据（不可恢复）。</p>
-        <button id="deleteBtn" class="danger">删除我的数据并退出</button>
-        <p id="deleteMsg" class="privacy micro"></p>
-      </div>
-
-      <div class="block">
-        <h3>产品边界说明</h3>
-        <p class="privacy">CloudMaster 是 AI 陪伴助手，不是真人也不是医生：不做诊断、不提供医疗或用药建议、不评判。识别到极端情绪或自伤风险时会中断自动回复并转人工审核。使用时长与未成年人模式按合规要求执行。</p>
-      </div>
-
-      <button id="closeSettings" class="ghost">返回对话</button>
-    </section>
-  </main>
-
-  <footer class="foot">CloudMaster 云上高士 · 页面内容 AI 生成 · 紧急风险走人工审核 · 提供来源虚构图谱，不提供未审核热线</footer>
 
   <script src="../common/api.js" defer></script>
 </body>
