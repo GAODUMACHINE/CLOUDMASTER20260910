@@ -15,6 +15,11 @@ ALLOWED_FIELDS = {
     "guardian_contact_available": bool,
     "emergency_contact_available": bool,
     "dependency_tendency": bool,
+    # ADR-009：注册邮箱（计划书 3.1.3-8）。属最小必要采集的**唯一例外**，
+    # 因「疏导报告经确认后发至注册邮箱」必须要有投递地址；可查看、可删除、可退订。
+    "email": str,
+    # 报告订阅开关（默认可发；用户回信 STOP 或前端退订即置 False）
+    "report_opt_in": bool,
 }
 
 
@@ -80,3 +85,18 @@ class ProfileStore:
         with self._lock:
             self._data = {}
             self._save()
+
+    def find_keys_by_email(self, email: str) -> list[str]:
+        """按注册邮箱回查匿名标识（ADR-009 退信用：IMAP 收到 STOP 后据此退订）。
+
+        只做内存内等值匹配，不写日志、不外泄；邮箱比较忽略大小写与首尾空白。
+        """
+        target = (email or "").strip().lower()
+        if not target:
+            return []
+        with self._lock:
+            return [
+                key
+                for key, value in self._data.items()
+                if str((value or {}).get("email", "")).strip().lower() == target
+            ]

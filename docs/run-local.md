@@ -30,15 +30,91 @@
 # 或直接
 & .\.venv\Scripts\python.exe -m uvicorn cloudmaster.server:app --host 127.0.0.1 --port 8000
 ```
-打开 **http://127.0.0.1:8000/web/cloud-glass/**。
+打开 **http://127.0.0.1:8000/web/cloud-glass/**（用户前端）。
+
+- 也可直接打开 **http://127.0.0.1:8000/**：根路径会 307 跳转到上述页面；`/web/` 是落地页。
+  （v1.4.0 修：此前 `/` 与 `/web/` 都是 404，只有一字不差输入完整路径才能进入，容易被误判成"进不去"。）
+- 值班端：**http://127.0.0.1:8000/web/review/**，需先在 `.env` 配 `CM_REVIEWER_TOKEN` 并重启。
+- 若浏览器打开是空白或卡在注册页（红字提示"请填写邮箱：疏导报告需要投递地址"／"请填写正确的邮箱"），
+  多为**旧版前端资源缓存**：按 `Ctrl+F5` 强制刷新。v1.3.0 起重写了 HTML/CSS/JS，且注册新增了邮箱字段，
+  旧缓存 JS 提交的载荷不带 `email`，后端会 400。
 
 ## 3. 能力（与后端契约一致）
 - `POST /api/register`：年龄门（<14 强拒 / 未成年需监护人信号）、最小画像 + **每人唯一的随机匿名 ID**。
-- `POST /api/chat`：返回 reply + risk_level + next_agent + basis_reason；L2 中断转人工审核（不自动回复）。
+- `POST /api/chat`：返回 reply + risk_level + next_agent + basis_reason；L2 中断转人工审核（不自动回复），
+  并返回 `escalation.ticket_id`（受理编号，前端危机横幅展示）。
 - `POST /api/chat/stream`：SSE 流式。
-- `DELETE /api/profile/{key}`：一键删除匿名画像与会话数据（幂等，不泄露标识是否存在）。
+- `DELETE /api/profile/{key}`：一键删除匿名画像与会话数据（幂等，不泄露标识是否存在）；同时清除保留期偏好。
 - `POST /api/appeal`：申诉与投诉举报受理，返回工单号（落 `data/private/appeals.jsonl`）。
-- `GET /api/resources`：转介资源 + 申诉入口元数据（**不含任何未审核热线号码**）。
+- `GET /api/resources`：转介资源 + 申诉入口元数据 + `hotlines`（**默认空数组，不含任何未审核热线号码**）。
+
+### 3.1 情绪自评（v1.2.0，非诊断）
+- `GET /api/assessment/items`：4 条日常感受条目 + 4 档选项 + 免责声明。
+- `POST /api/assessment` body `{"answers":{"mood":"none|rare|often|always", ...}}`：
+  只返回**区间 + 建议动作 + 免责声明**，**不含任何分数**；达「建议尽快寻求专业帮助」区间时
+  自动登记人工审核待审案件（不自行处理）。
+
+### 3.2 隐私保留期与导出（v1.2.0）
+- `GET /api/privacy/{key}`：当前保留期（默认 30 天）+ 可选值 `[7,30,90]` + 到期删除时间。
+- `POST /api/privacy/{key}/retention` body `{"days":7|30|90}`：仅接受这三个值，其余返回 400。
+- `GET /api/privacy/{key}/export`：导出本人的最小画像与会话记录（只含匿名数据，无姓名/联系方式）。
+- 保留期偏好落 `data/private/privacy.json`（gitignored，不进画像白名单）。
+
+### 3.3 人工审核台（v1.2.0，内部高危链路）
+审核台会返回会话上下文，属敏感数据，**默认不开放**：须在环境变量中配置令牌后启用。
+
+```powershell
+# 启动前设置审核台令牌（示例值，请自行更换；令牌不入库）
+$env:CM_REVIEWER_TOKEN = "<自定义审核台令牌>"
+```
+
+| 接口 | 说明 |
+|---|---|
+| `GET /api/review/pending?token=` | 待审队列（只有判定依据与摘要，无对话原文） |
+| `GET /api/review/{ticket_id}?token=` | 单个案件 + 上下文（用于人工判断，不落盘） |
+| `POST /api/review/decision?token=` | 写回结论：`{"ticket_id","decision":"approve\|block","reviewer","contact_kind"}` |
+
+- 未配置令牌或令牌不匹配一律 **403**（不区分「未开通」与「令牌错误」，避免泄露链路是否启用）。
+- `decision=approve` → 审计留痕 + 联络动作（`contact_kind`：`guardian`/`emergency`/`school`/`none`）+ 次日温和回访；
+  `decision=block` → 仅审计留痕、不发起联络。
+- 审核结论写回后**图自动恢复**（`update_state` → `invoke(None)`），由既有 `human_review` 节点消费。
+- 台账落 `data/private/reviews.jsonl`（append-only、gitignored），**绝不落对话原文**。
+- **值班网页（v1.4.0）**：<http://127.0.0.1:8000/web/review/> —— 令牌在页面内输入，只存 `sessionStorage`
+  （不进 URL / 不进 localStorage）；待审队列 → 判定依据 + 上下文 → approve/block + 联络对象 → 结果回显。
+  服务端未配 `CM_REVIEWER_TOKEN` 时页面一律拒绝访问。
+- **挂起语义（v1.4.0，ADR-010）**：L2 中断期间 `/api/chat` 返回安全提示**占位文案**并带 `held_for_review=true`，
+  不生成自动回复；此间用户新消息只追加进上下文供审核查看，**不推进图**，因此工单不会被绕过、也不会失效。
+- **裁决前校验中断态**：会话已删除 → 409；中断态已失效 → 409；恢复后无审计 → 500 且台账保持未闭环
+  （禁止「静默成功」把工单闭环却什么都没恢复）。
+
+### 3.4 邮件收发（v1.3.0，ADR-009）
+
+分**系统侧账号**（发信/收信凭据，走 `.env`）与**用户侧注册邮箱**（报告投递地址）两部分。
+**未配置时通道关闭且如实报错，绝不假装发送成功。**
+
+```powershell
+# 发信（SMTP）——以 QQ 邮箱为例；Outlook 用 smtp-mail.outlook.com:587 + starttls
+$env:SMTP_HOST="smtp.qq.com"; $env:SMTP_PORT="465"; $env:SMTP_SECURITY="ssl"
+$env:SMTP_USER="<系统发信邮箱>"; $env:SMTP_PASSWORD="<SMTP 授权码，非登录密码>"
+# 收信（IMAP）——用于接收回信 / 退信 / STOP 退订
+$env:IMAP_HOST="imap.qq.com"; $env:IMAP_PORT="993"
+$env:IMAP_USER="<系统收件邮箱>"; $env:IMAP_PASSWORD="<IMAP 授权码>"
+```
+
+| 接口 | 说明 |
+|---|---|
+| `GET /api/report/{key}` | 生成报告**草稿**（不发送），返回 `confirm_token` |
+| `POST /api/report/send` | 前端二次确认后发送：`{"report_id","confirm_token","decision":"approve"}` |
+| `GET /api/report/status/{key}` | 投递邮箱、通道是否就绪、已发送记录 |
+| `POST /api/report/unsubscribe/{key}` | 退订报告（`report_opt_in=False`）；`/resubscribe` 重新开启 |
+| `POST /api/inbox/poll?token=` | 拉取新来信（回信/退信/退订）并入库；须审核台令牌 |
+| `GET /api/inbox?token=` | 来信台账（只读摘要） |
+
+- **发送是产品级 HITL**：报告只含会话**聚合信息与建议，不含对话原文**；用户先看预览、再点确认才发送。
+- 确认令牌绑定「匿名标识 + 报告编号」，服务端用 `compare_digest` 比对；同一报告**不可重复投递**（409）。
+- 收信只读 `text/plain` 并**跳过附件**，正文截断 2000 字后落 `data/private/inbox.jsonl`（gitignored）。
+- 来信分类：`reply`（主题含 `[RP-xxxx]`/`[HR-xxxx]` 即归属到报告/工单）、`bounce`（退信）、`auto`（自动回复）、`other`。
+- 邮件正文含 `STOP`/`退订` 等 → 自动把对应用户的 `report_opt_in` 置 False（按发件地址回查匿名标识）。
 - AI 内容标识 + 匿名隐私 + prefers-reduced-motion 全部内置。
 
 ## 4. 测试 / 安全回归（禁止触网）

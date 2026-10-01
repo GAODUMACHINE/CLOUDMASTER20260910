@@ -7,5 +7,7 @@ Set-Location $here
 New-Item -ItemType Directory -Force -Path 'data\private' | Out-Null
 Write-Host '[CloudMaster] starting (cloud-glass UI) ...'
 Write-Host '  open  http://127.0.0.1:8000/web/cloud-glass/'
+Write-Host '  or    http://127.0.0.1:8000/               (auto-redirect)'
+Write-Host '  ops   http://127.0.0.1:8000/web/review/     (needs CM_REVIEWER_TOKEN)'
 Write-Host '  stop  Ctrl+C'
 & '.\\.venv\\Scripts\\python.exe' -m uvicorn cloudmaster.server:app --host 127.0.0.1 --port 8000

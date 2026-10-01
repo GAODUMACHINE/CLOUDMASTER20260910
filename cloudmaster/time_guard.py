@@ -6,17 +6,25 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 MINOR_PRE_MIN = 50
 MINOR_CLOSE_MIN = 60
 ALL_LONG_MIN = 120
 
+# 依赖倾向自动识别（计划书 3.1.3 第 10 条：检测「高频连续使用」）。
+DEP_WINDOW_HOURS = 24
+DEP_FREQ_THRESHOLD = 8
+
 AI_DISCLOSURE_MSG = "💡 依赖提示：这段内容由 AI 生成，仅供参考，不构成专业诊断或建议。"
 MINOR_PRE_MSG = "小提醒：本次陪伴已约 50 分钟，休息一下会更好，随时可以回来。"
 MINOR_CLOSE_MSG = "今晚已陪伴满 1 小时，先到这里好好休息吧。明天我们继续。"
 LONG_SESSION_MSG = "已陪伴满 2 小时，建议起身放松一下。随时可以继续聊。"
+DEPENDENCY_MSG = (
+    "💡 依赖提示：这段内容由 AI 生成。最近你来得比较频繁，我很愿意陪你，"
+    "但也想提醒你——出去走走、和身边的人说说话，或者找线下支持，同样重要。"
+)
 
 
 def _parse_iso(value: str | None, fallback: datetime) -> datetime:
@@ -26,6 +34,24 @@ def _parse_iso(value: str | None, fallback: datetime) -> datetime:
         return datetime.fromisoformat(value)
     except ValueError:
         return fallback
+
+
+def _recent_starts(usage: dict[str, Any], now: datetime) -> list[datetime]:
+    """取最近 DEP_WINDOW_HOURS 内的会话开始时刻（含本轮），越窗的旧记录自动淘汰。"""
+    cutoff = now - timedelta(hours=DEP_WINDOW_HOURS)
+    raw = list(usage.get("recent_session_starts") or [])
+    raw.append(now.isoformat())
+    kept: list[datetime] = []
+    for item in raw:
+        moment = _parse_iso(item if isinstance(item, str) else None, now)
+        if moment >= cutoff:
+            kept.append(moment)
+    return kept
+
+
+def detect_dependency(usage: dict[str, Any], now: datetime) -> bool:
+    """高频连续使用识别：近 24h 内会话次数达阈值即视为有依赖倾向。纯规则。"""
+    return len(_recent_starts(usage, now)) >= DEP_FREQ_THRESHOLD
 
 
 def evaluate(usage: dict[str, Any], profile: dict[str, Any], now: datetime) -> dict[str, Any]:
@@ -43,6 +69,9 @@ def evaluate(usage: dict[str, Any], profile: dict[str, Any], now: datetime) -> d
     elapsed_min = max(0.0, (now - session_start).total_seconds() / 60.0)
     today = now.strftime("%Y-%m-%d")
 
+    recent = _recent_starts(out_usage, now)
+    out_usage["recent_session_starts"] = [m.isoformat() for m in recent]
+
     messages: list[str] = []
     fired = False
 
@@ -51,10 +80,14 @@ def evaluate(usage: dict[str, Any], profile: dict[str, Any], now: datetime) -> d
         out_usage["fired"] = False
         return {"fired": False, "usage_meta": out_usage, "messages": []}
 
-    # 依赖倾向 → AI 生成提示弹窗。
-    if profile.get("dependency_tendency") and not out_usage.get("disclosure_done"):
-        messages.append(AI_DISCLOSURE_MSG)
+    # 依赖倾向 → AI 生成提示弹窗：注册自述信号，或高频连续使用的自动识别结果。
+    declared = bool(profile.get("dependency_tendency"))
+    observed = detect_dependency(out_usage, now)
+    if (declared or observed) and not out_usage.get("disclosure_done"):
+        messages.append(DEPENDENCY_MSG if observed else AI_DISCLOSURE_MSG)
         out_usage["disclosure_done"] = True
+        if observed:
+            out_usage["dependency_observed"] = True
 
     if is_minor:
         if elapsed_min >= MINOR_CLOSE_MIN:

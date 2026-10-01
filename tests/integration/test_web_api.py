@@ -24,28 +24,35 @@ def _client(tmp_path, fake_llm_empathic, expected_token="tok"):
 
 def test_register_adult_ok(tmp_path, fake_llm_empathic):
     c, store, _ = _client(tmp_path, fake_llm_empathic)
-    r = c.post("/api/register", json={"age": 22})
+    r = c.post("/api/register", json={"age": 22, "email": "u@example.com"})
     assert r.status_code == 200 and r.json()["ok"] is True
     key = r.json()["profile_key"]
-    assert store.get(key) == {"age": 22, "is_minor": False}
+    assert store.get(key) == {
+        "age": 22,
+        "is_minor": False,
+        "email": "u@example.com",
+        "report_opt_in": True,
+    }
 
 
 def test_register_under14_rejected(tmp_path, fake_llm_empathic):
     c, _, _ = _client(tmp_path, fake_llm_empathic)
-    r = c.post("/api/register", json={"age": 13})
+    r = c.post("/api/register", json={"age": 13, "email": "u@example.com"})
     assert r.status_code == 400
 
 
 def test_register_minor_requires_guardian(tmp_path, fake_llm_empathic):
     c, _, _ = _client(tmp_path, fake_llm_empathic)
-    assert c.post("/api/register", json={"age": 16}).status_code == 400
-    r = c.post("/api/register", json={"age": 16, "guardian_contact_available": True})
+    assert c.post("/api/register", json={"age": 16, "email": "u@example.com"}).status_code == 400
+    r = c.post(
+        "/api/register", json={"age": 16, "email": "u@example.com", "guardian_contact_available": True}
+    )
     assert r.status_code == 200
 
 
 def test_chat_returns_reply(tmp_path, fake_llm_empathic):
     c, store, _ = _client(tmp_path, fake_llm_empathic)
-    key = c.post("/api/register", json={"age": 22}).json()["profile_key"]
+    key = c.post("/api/register", json={"age": 22, "email": "u@example.com"}).json()["profile_key"]
     r = c.post("/api/chat", json={"profile_key": key, "text": "我今天有点累"})
     assert r.status_code == 200
     body = r.json()
@@ -54,7 +61,7 @@ def test_chat_returns_reply(tmp_path, fake_llm_empathic):
 
 def test_stream_sses_reply(tmp_path, fake_llm_empathic):
     c, store, _ = _client(tmp_path, fake_llm_empathic)
-    key = c.post("/api/register", json={"age": 22}).json()["profile_key"]
+    key = c.post("/api/register", json={"age": 22, "email": "u@example.com"}).json()["profile_key"]
     r = c.post("/api/chat/stream", json={"profile_key": key, "text": "你好"})
     assert r.status_code == 200
     assert r.headers["content-type"].startswith("text/event-stream")
@@ -62,7 +69,11 @@ def test_stream_sses_reply(tmp_path, fake_llm_empathic):
 
 
 def test_email_confirm_approve_sends(tmp_path, fake_llm_empathic):
+    from cloudmaster.mailer import RecordingChannel
+
     c, _, mailer = _client(tmp_path, fake_llm_empathic, expected_token="tok")
+    # v1.3.0：默认 Mailer() 无通道（绝不假装发送成功）；此处注入记录通道以断言真实发送语义。
+    mailer._channel = RecordingChannel()
     r = c.post(
         "/api/email/confirm",
         json={
@@ -75,6 +86,22 @@ def test_email_confirm_approve_sends(tmp_path, fake_llm_empathic):
     )
     assert r.status_code == 200 and r.json()["sent"] is True
     assert len(mailer.sent) == 1
+
+
+def test_email_confirm_unconfigured_channel_reports_failure(tmp_path, fake_llm_empathic):
+    """红线：未配置 SMTP 通道时不得假装发送成功。"""
+    c, _, _ = _client(tmp_path, fake_llm_empathic, expected_token="tok")
+    r = c.post(
+        "/api/email/confirm",
+        json={
+            "email": "u@example.com",
+            "subject": "s",
+            "body": "b",
+            "decision": "approve",
+            "confirm_token": "tok",
+        },
+    )
+    assert r.status_code == 200 and r.json()["sent"] is False
 
 
 def test_email_reject_not_sent(tmp_path, fake_llm_empathic):
@@ -100,6 +127,39 @@ def test_static_serves_cloud_glass(tmp_path, fake_llm_empathic):
     # 品牌标题（大标题 + 页面 title）锁定为「CloudMaster · 云上高士」
     assert '<h1 class="brand">CloudMaster<span class="dot"> · </span>云上高士</h1>' in r.text
     assert "<title>CloudMaster · 云上高士</title>" in r.text
+    # 新增合规/功能入口容器（注册邮箱、自评、隐私保留期、导出、报告确认）
+    for dom_id in (
+        "email",
+        "assessmentForm",
+        "assessmentResult",
+        "retentionDays",
+        "exportBtn",
+        "reportBtn",
+        "reportSendBtn",
+    ):
+        assert f'id="{dom_id}"' in r.text
+
+
+def test_root_redirects_to_user_frontend(tmp_path, fake_llm_empathic):
+    """根路径必须能进用户前端。
+
+    此前 `/` 与 `/web/` 都是 404，只有一字不差地输入 `/web/cloud-glass/` 才能进入，
+    极易被误判成「前端坏了 / 进不去」。
+    """
+    c, _, _ = _client(tmp_path, fake_llm_empathic)
+    r = c.get("/", follow_redirects=False)
+    assert r.status_code in (301, 302, 307, 308)
+    assert r.headers["location"] == "/web/cloud-glass/"
+    # 跟随后确实拿到用户前端页面
+    assert "云上高士" in c.get("/").text
+
+
+def test_web_root_serves_landing_instead_of_404(tmp_path, fake_llm_empathic):
+    """`/web/` 不能再是 404：由 frontend/index.html 落地页承接并跳转到 cloud-glass。"""
+    c, _, _ = _client(tmp_path, fake_llm_empathic)
+    r = c.get("/web/")
+    assert r.status_code == 200
+    assert "cloud-glass/" in r.text
 
 
 def test_register_invalid_body_is_422(tmp_path, fake_llm_empathic):
@@ -134,18 +194,18 @@ def _full_client(tmp_path, llm, token="tok"):
 def test_register_same_age_gets_distinct_keys(tmp_path, fake_llm_empathic):
     """同年龄两次注册必须是不同匿名 ID（旧 hash(age) 实现会复用同一 ID）。"""
     c, store, _, _ = _full_client(tmp_path, fake_llm_empathic)
-    k1 = c.post("/api/register", json={"age": 22}).json()["profile_key"]
-    k2 = c.post("/api/register", json={"age": 22}).json()["profile_key"]
+    k1 = c.post("/api/register", json={"age": 22, "email": "u@example.com"}).json()["profile_key"]
+    k2 = c.post("/api/register", json={"age": 22, "email": "u@example.com"}).json()["profile_key"]
     assert k1 != k2
-    assert store.get(k1) == {"age": 22, "is_minor": False}
-    assert store.get(k2) == {"age": 22, "is_minor": False}
+    assert store.get(k1)["email"] == "u@example.com" and store.get(k1)["age"] == 22
+    assert store.get(k2)["email"] == "u@example.com" and store.get(k2)["age"] == 22
 
 
 def test_same_age_sessions_are_isolated(tmp_path, fake_llm_empathic):
     """同龄用户不得共用会话 thread（串会话 = 用户数据越权）。"""
     c, _, _, graph = _full_client(tmp_path, fake_llm_empathic)
-    k1 = c.post("/api/register", json={"age": 22}).json()["profile_key"]
-    k2 = c.post("/api/register", json={"age": 22}).json()["profile_key"]
+    k1 = c.post("/api/register", json={"age": 22, "email": "u@example.com"}).json()["profile_key"]
+    k2 = c.post("/api/register", json={"age": 22, "email": "u@example.com"}).json()["profile_key"]
     c.post("/api/chat", json={"profile_key": k1, "text": "我今天有点累"})
     assert graph.get_state({"configurable": {"thread_id": k1}}).values
     assert not graph.get_state({"configurable": {"thread_id": k2}}).values
@@ -154,7 +214,7 @@ def test_same_age_sessions_are_isolated(tmp_path, fake_llm_empathic):
 def test_delete_profile_clears_profile_and_thread(tmp_path, fake_llm_empathic):
     """TC-PRIV-004：便捷退出/删除——最小画像与 thread 数据一并清除。"""
     c, store, _, graph = _full_client(tmp_path, fake_llm_empathic)
-    key = c.post("/api/register", json={"age": 22}).json()["profile_key"]
+    key = c.post("/api/register", json={"age": 22, "email": "u@example.com"}).json()["profile_key"]
     c.post("/api/chat", json={"profile_key": key, "text": "我今天有点累"})
     r = c.delete(f"/api/profile/{key}")
     assert r.status_code == 200

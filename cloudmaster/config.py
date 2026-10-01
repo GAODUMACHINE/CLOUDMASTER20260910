@@ -18,6 +18,38 @@ class Settings(BaseSettings):
     qwen_base_url: str = ""
     # CM_STUB=1 -> 用本地确定性 stub 模型跑通全流程（零额度/不触网），真实模型开通后再取消
     cm_stub: bool = False
+    # 人工审核台访问令牌：为空则审核台一律 403（默认不开放）。仅经环境变量/.env 注入，绝不硬编码。
+    cm_reviewer_token: str = ""
+
+    # ---- 邮件（ADR-009）：全部经环境变量/.env 注入，绝不硬编码；为空则邮件通道关闭 ----
+    # 发信（SMTP）：系统侧账号，用于发送疏导报告与人工联络
+    smtp_host: str = ""
+    smtp_port: int = 465
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = ""  # 缺省回退到 smtp_user
+    smtp_security: str = "ssl"  # ssl / starttls / plain（plain 仅本地调试）
+    # 收信（IMAP）：系统侧收件账号，用于接收回信/退信/退订
+    imap_host: str = ""
+    imap_port: int = 993
+    imap_user: str = ""
+    imap_password: str = ""
+    imap_folder: str = "INBOX"
+    # 报告发件人显示名与主题前缀（收信侧据此识别回信归属）
+    mail_from_name: str = "CloudMaster 云上高士"
+
+    @property
+    def smtp_ready(self) -> bool:
+        """是否具备真实发信条件。缺任一必填项即视为未配置（通道关闭，不静默失败）。"""
+        return bool(self.smtp_host.strip() and self.smtp_user.strip() and self.smtp_password)
+
+    @property
+    def imap_ready(self) -> bool:
+        return bool(self.imap_host.strip() and self.imap_user.strip() and self.imap_password)
+
+    @property
+    def sender(self) -> str:
+        return self.smtp_from.strip() or self.smtp_user.strip()
 
     @property
     def resolved_base_url(self) -> str:

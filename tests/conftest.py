@@ -14,6 +14,24 @@ from langchain_core.messages import AIMessage
 CONFIRM_MARK = "危机识别复核"
 SCREEN_MARK = "语义筛查"
 
+# 隐私红线：测试绝不许写入真实 data/private（本机会话、申诉台账、审核台账）。
+_PRIVATE_ENV = (
+    "PROFILE_DB_PATH",
+    "MEMORY_DB_PATH",
+    "APPEAL_DB_PATH",
+    "REVIEW_DB_PATH",
+    "PRIVACY_DB_PATH",
+    "RESOURCE_DB_PATH",
+)
+
+
+@pytest.fixture(autouse=True)
+def _isolate_private_data(tmp_path, monkeypatch):
+    """把所有落盘型存储重定向到 tmp_path，保证测试不触碰真实隐私数据。"""
+    for name in _PRIVATE_ENV:
+        monkeypatch.setenv(name, str(tmp_path / f"{name.lower()}.data"))
+    yield
+
 
 class ScriptedLLM:
     """prompt 感知的确定性 fake ChatModel（仅需 .invoke(...)->.content）。"""

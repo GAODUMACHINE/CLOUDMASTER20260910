@@ -2,7 +2,13 @@
 
 from datetime import UTC, datetime, timedelta
 
-from cloudmaster.time_guard import AI_DISCLOSURE_MSG, evaluate
+from cloudmaster.time_guard import (
+    AI_DISCLOSURE_MSG,
+    DEP_FREQ_THRESHOLD,
+    DEPENDENCY_MSG,
+    detect_dependency,
+    evaluate,
+)
 
 T0 = datetime(2026, 9, 10, 12, 0, tzinfo=UTC)
 
@@ -46,3 +52,55 @@ def test_below_threshold_not_fired():
     now = T0 + timedelta(minutes=10)
     res = evaluate({"session_started_at": T0.isoformat()}, {"age": 16}, now)
     assert res["fired"] is False
+
+
+# ---- 依赖倾向自动识别（计划书 3.1.3-10：检测高频连续使用） ----
+
+
+def test_detect_dependency_below_threshold():
+    now = T0
+    starts = [(now - timedelta(hours=i)).isoformat() for i in range(1, 4)]
+    assert detect_dependency({"recent_session_starts": starts}, now) is False
+
+
+def test_detect_dependency_at_threshold():
+    now = T0
+    starts = [(now - timedelta(hours=i)).isoformat() for i in range(1, DEP_FREQ_THRESHOLD)]
+    assert detect_dependency({"recent_session_starts": starts}, now) is True
+
+
+def test_detect_dependency_ignores_starts_outside_window():
+    now = T0
+    stale = [(now - timedelta(hours=30 + i)).isoformat() for i in range(20)]
+    assert detect_dependency({"recent_session_starts": stale}, now) is False
+
+
+def test_observed_dependency_prompts_and_flags():
+    """未自述依赖倾向，但高频使用 → 仍应提示并标记观察结果。"""
+    now = T0
+    starts = [(now - timedelta(hours=1)).isoformat() for _ in range(DEP_FREQ_THRESHOLD)]
+    res = evaluate({"session_started_at": now.isoformat(), "recent_session_starts": starts}, {"age": 22}, now)
+    assert res["fired"] is True
+    assert DEPENDENCY_MSG in res["messages"]
+    assert res["usage_meta"]["dependency_observed"] is True
+    assert res["usage_meta"]["disclosure_done"] is True
+
+
+def test_dependency_not_repeated_in_same_session():
+    now = T0
+    starts = [(now - timedelta(hours=1)).isoformat() for _ in range(DEP_FREQ_THRESHOLD)]
+    usage = {
+        "session_started_at": now.isoformat(),
+        "recent_session_starts": starts,
+        "disclosure_done": True,
+    }
+    res = evaluate(usage, {"age": 22, "dependency_tendency": True}, now)
+    assert DEPENDENCY_MSG not in res["messages"]
+
+
+def test_recent_starts_are_trimmed_to_window():
+    now = T0
+    stale = [(now - timedelta(hours=40 + i)).isoformat() for i in range(10)]
+    res = evaluate({"session_started_at": now.isoformat(), "recent_session_starts": stale}, {"age": 22}, now)
+    kept = res["usage_meta"]["recent_session_starts"]
+    assert len(kept) == 1  # 仅保留本轮

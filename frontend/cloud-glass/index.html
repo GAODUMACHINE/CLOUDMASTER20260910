@@ -21,17 +21,21 @@
         <div class="sheet sheet-narrow">
           <p class="kicker">一处可以放松倾诉的云端陪伴</p>
           <h2>开始前，请确认你的年龄</h2>
-          <p class="privacy">匿名使用：我们不索要真实姓名、照片或联系方式。</p>
+          <p class="privacy">匿名使用：我们不索要真实姓名、照片或联系方式。邮箱仅用于按你的确认投递疏导报告，可随时退订或删除。</p>
           <label class="field">年龄
             <input id="age" type="number" min="0" max="100" placeholder="请输入年龄">
           </label>
           <p id="ageReject" class="reject hidden">未满 14 岁无法使用：本产品不处理 <14 岁数据。</p>
+          <label class="field">邮箱（用于接收疏导报告）
+            <input id="email" type="email" autocomplete="email" placeholder="name@example.com">
+          </label>
+          <p id="emailErr" class="reject hidden">邮箱格式不正确，请检查后再提交。</p>
           <div id="guardianRow" class="guardian-row hidden">
             <label><input id="guardianBox" type="checkbox"> 我确认使用期间有监护人/家长在场或在旁</label>
           </div>
           <button id="regBtn" class="primary">开始陪伴</button>
           <p id="chatError" class="error"></p>
-          <p class="smallprint">内容由 AI 生成 · 紧急风险走人工审核 · 提供来源虚构图谱，不提供未审核热线</p>
+          <p class="smallprint">内容由 AI 生成 · 紧急风险走人工审核 · 报告须经你确认后发送 · 不提供未审核热线</p>
         </div>
       </section>
 
@@ -83,8 +87,31 @@
           </div>
 
           <div class="block">
+            <h3>疏导报告（需你确认后发送）</h3>
+            <p class="privacy">报告只含会话聚合信息与建议，<strong>不含你的对话原文</strong>。生成后可先预览，确认才会发到你的注册邮箱；随时可退订。</p>
+            <button id="reportBtn" class="ghost compact">生成报告预览</button>
+            <p id="reportMsg" class="privacy micro"></p>
+            <pre id="reportPreview" class="report-preview hidden"></pre>
+            <button id="reportSendBtn" class="primary compact hidden">确认并发送到我的邮箱</button>
+          </div>
+
+          <div class="block">
+            <h3>情绪自评（非诊断）</h3>
+            <p class="privacy">四道日常感受题，只给出区间与建议动作，不做任何诊断，也不给出分数。</p>
+            <div id="assessmentForm" class="assessment-form"></div>
+            <p id="assessmentDisclaimer" class="privacy micro"></p>
+            <div id="assessmentResult" class="assessment-result hidden"></div>
+          </div>
+
+          <div class="block">
             <h3>隐私与退出</h3>
-            <p class="privacy">一键删除：清除你的匿名画像与本机会话数据（不可恢复）。</p>
+            <p class="privacy">会话保留期可自选；也可以随时导出自己的数据。一键删除会清除你的匿名画像与本机会话数据（不可恢复）。</p>
+            <label class="field small">会话保留期
+              <select id="retentionDays"></select>
+            </label>
+            <p id="retentionMsg" class="privacy micro"></p>
+            <button id="exportBtn" class="ghost compact">导出我的数据</button>
+            <p id="exportMsg" class="privacy micro"></p>
             <button id="deleteBtn" class="danger">删除我的数据并退出</button>
             <p id="deleteMsg" class="privacy micro"></p>
           </div>
