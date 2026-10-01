@@ -29,7 +29,11 @@ def empathic_node(state: dict[str, Any], llm: Any) -> dict[str, Any]:
     text = _last_user_text(state)
     if risk == "high":
         return {"messages": [AIMessage(HIGH_RISK_SUPPORT)]}
-    content = react_agent(llm, text)
+    profile = state.get("user_profile") or {}
+    age = profile.get("age")
+    minor_mode = isinstance(age, int) and age < 18
+    # 未成年走收紧模板（方案 4.3.7-4：简短温和、不展开敏感细节、安全优先引导线下成年人）。
+    content = react_agent(llm, text, minor_mode=minor_mode)
     if risk == "low":
         content = content + LOW_RISK_TAIL
     return {"messages": [AIMessage(content)]}

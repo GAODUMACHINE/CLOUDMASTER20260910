@@ -13,11 +13,13 @@ from cloudmaster.time_guard import (
 T0 = datetime(2026, 9, 10, 12, 0, tzinfo=UTC)
 
 
-def test_minor_50min_pre_reminder_fires_short_circuit():
+def test_minor_50min_pre_reminder_non_blocking():
+    """v2.0.0 P2：50 分钟预提醒为 reminder（非阻断）——提示照发但用户当轮仍有疏导回复。"""
     now = T0 + timedelta(minutes=50)
     res = evaluate({"session_started_at": T0.isoformat()}, {"age": 16}, now)
-    assert res["fired"] is True
+    assert res["fired"] is False
     assert len(res["messages"]) == 1
+    assert res["notices"] == [{"kind": "reminder", "text": res["messages"][0]}]
 
 
 def test_minor_60min_close_fires_and_sets_last_fired_date():
@@ -42,10 +44,12 @@ def test_adult_120min_reminder():
 
 
 def test_dependency_tendency_ai_disclosure():
+    """v2.0.0 P2：依赖披露为 disclosure（非阻断）——弹窗语义，不吞掉当轮疏导回复。"""
     now = T0 + timedelta(minutes=5)
     res = evaluate({"session_started_at": T0.isoformat()}, {"age": 22, "dependency_tendency": True}, now)
-    assert res["fired"] is True
+    assert res["fired"] is False
     assert AI_DISCLOSURE_MSG in res["messages"]
+    assert res["notices"][0]["kind"] == "disclosure"
 
 
 def test_below_threshold_not_fired():
@@ -76,11 +80,11 @@ def test_detect_dependency_ignores_starts_outside_window():
 
 
 def test_observed_dependency_prompts_and_flags():
-    """未自述依赖倾向，但高频使用 → 仍应提示并标记观察结果。"""
+    """未自述依赖倾向，但高频使用 → 仍应提示并标记观察结果（v2.0.0 P2：非阻断）。"""
     now = T0
     starts = [(now - timedelta(hours=1)).isoformat() for _ in range(DEP_FREQ_THRESHOLD)]
     res = evaluate({"session_started_at": now.isoformat(), "recent_session_starts": starts}, {"age": 22}, now)
-    assert res["fired"] is True
+    assert res["fired"] is False
     assert DEPENDENCY_MSG in res["messages"]
     assert res["usage_meta"]["dependency_observed"] is True
     assert res["usage_meta"]["disclosure_done"] is True

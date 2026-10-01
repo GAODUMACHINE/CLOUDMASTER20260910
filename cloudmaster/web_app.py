@@ -125,6 +125,21 @@ REVIEW_HOLD_REPLY = (
     "如有立即的危险，请立即拨打当地急救电话或前往就近医院急诊。"
 )
 
+
+def _reply_of(msgs: list[Any]) -> str:
+    """取最后一条 AI 消息作为回复；无 AI 消息返回空串。
+
+    v2.0.0 P2 回显守卫：裸取 msgs[-1] 在「图结束时最后一条是用户消息」的路径上
+    （如防死循环强制 end）会把用户自己的话回显成 AI 回复；倒序找最近一条 AI 消息即可。
+    time_guard 的非阻断提示也是 AI 消息：若其后无疏导回复（收尾短路），该提示本身
+    就是当轮回复——语义正确。
+    """
+    for m in reversed(msgs):
+        if getattr(m, "type", "") == "ai":
+            return str(m.content)
+    return ""
+
+
 # 报告确认令牌的服务端盐：进程级随机，令牌不可跨进程复用（用户须当次确认）。
 _TOKEN_SALT = secrets.token_hex(16)
 
@@ -297,7 +312,7 @@ def create_app(
                 profile_key=req.profile_key,
                 context_summary=_context_summary(_thread_messages(graph, req.profile_key)),
             )
-        reply = REVIEW_HOLD_REPLY if held else (msgs[-1].content if msgs else "")
+        reply = REVIEW_HOLD_REPLY if held else _reply_of(msgs)
         return {
             "reply": reply,
             "risk_level": risk,
@@ -315,8 +330,7 @@ def create_app(
         cfg = {"configurable": {"thread_id": req.profile_key}}
         res = svc.service_turn(graph, store, req.profile_key, req.text, cfg)
         msgs = res.get("messages") or []
-        reply = msgs[-1].content if msgs else ""
-        return StreamingResponse(iter("data: " + reply + "\n\n"), media_type="text/event-stream")
+        return StreamingResponse(iter("data: " + _reply_of(msgs) + "\n\n"), media_type="text/event-stream")
 
     # ---- 邮件：报告草稿 / 二次确认发送 / 收信 / 退订（ADR-009） ----
     def _profile_of(profile_key: str) -> dict[str, Any]:

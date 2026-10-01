@@ -1,5 +1,6 @@
-"""LLM 工厂（生产：Qwen3.5-Flash OpenAI 兼容）。测试一律注入 fake_chat_models，禁止触网。
-CM_STUB=1 时提供本地确定性替身 StubLLM（不触网、零额度），用于在未开通真实模型前跑通全流程。"""
+"""LLM 工厂（生产：qwen-flash，OpenAI 兼容协议接 DashScope；模型名见 config.settings）。
+测试一律注入 fake_chat_models，禁止触网。CM_STUB=1 时提供本地确定性替身 StubLLM
+（不触网、零额度），用于在未开通真实模型前跑通全流程。"""
 
 from __future__ import annotations
 
@@ -40,12 +41,20 @@ class StubLLM:
         return _StubReply(self._decide(prompt))
 
     def _decide(self, prompt: str) -> str:
-        # 危机 LLM 层两种 prompt：复核（CONFIRM_PROMPT）/ 语义筛查（SCREEN_PROMPT）→ 返回 SAFE，
-        # 完全交给规则词表判定，避免替身误升级（离线替身不承担语义召回，生产中由真实模型承担）。
-        if "危机识别复核" in prompt or "语义筛查" in prompt:
+        # 危机复核（CONFIRM_PROMPT）→ WATCH：**维持规则词表级别**（L2 保持 L2、L1 保持 L1）。
+        # v2.0.0 P2 修复：旧版恒回 SAFE 会把规则级 L2 一律降为 L1，stub 演示断掉最关键的
+        # L2 挂起→人工审核链路；也不回 DANGER（会把全部 L1 词误升 L2，演示环境误报泛滥）。
+        if "危机识别复核" in prompt:
+            return "WATCH"
+        # 语义筛查（SCREEN_PROMPT）→ SAFE：不升级，完全交给规则词表判定
+        # （离线替身不承担语义召回，生产中由真实模型承担）。
+        if "语义筛查" in prompt:
             return "SAFE"
-        # 普通陪伴（REACT_PROMPT 内含「用户的话：…」）→ 确定性支持性回复
-        text = prompt.split("用户的话：", 1)[-1].strip()
+        # 普通陪伴（「用户的话：…」）或科普（KNOWLEDGE_PROMPT「用户问题：…」）→ 确定性支持性回复
+        text = prompt.split("用户的话：", 1)[-1]
+        if "用户问题：" in prompt:
+            text = prompt.split("用户问题：", 1)[-1]
+        text = text.strip()
         base = "我在这里陪着你。听起来你有些低落或压力——先深呼吸，我们慢慢说。"
         if not text:
             return base

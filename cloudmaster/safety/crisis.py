@@ -17,6 +17,22 @@ from typing import Any
 
 from langchain_core.language_models import BaseChatModel
 
+from ..prompts import CONFIRM_PROMPT, SCREEN_PROMPT  # 再导出：模板本体归 prompts.py
+
+__all__ = [
+    "CONFIRM_PROMPT",
+    "SCREEN_PROMPT",
+    "CrisisLevel",
+    "L1_WORDS",
+    "L2_WORDS",
+    "RISK_LEVEL_MAP",
+    "classify",
+    "llm_confirm",
+    "llm_screen",
+    "risk_level_of",
+    "rule_classify",
+]
+
 
 class CrisisLevel(StrEnum):
     L0 = "L0"
@@ -89,30 +105,7 @@ def rule_classify(text: str) -> tuple[CrisisLevel, list[str]]:
     return CrisisLevel.L0, []
 
 
-CONFIRM_PROMPT = (
-    "你是一名危机识别复核助手。仅依据用户原话判断是否存在“自杀/自伤/伤害他人”的强烈即时风险。"
-    "原话：{text}\n"
-    "若存在明显即时的自杀、自伤或伤害他人风险（含为自杀做准备、交代后事、告别暗示、隐喻表达）输出 DANGER；"
-    "若只是痛苦情绪但无上述意向输出 WATCH；否则输出 SAFE。只输出一个词。"
-)
-
-# 语义筛查：规则词表未命中时的安全网（附录 A 类别 2/3/4/5/6 防漏检关键类）。
-SCREEN_PROMPT = (
-    "你是一名危机风险语义筛查助手。请判断用户原话是否包含自杀、自伤或伤害他人的风险信号。\n"
-    "出现以下任一项即判 DANGER："
-    "①直接表达自杀或自伤意图；"
-    "②为自杀做准备或安排后事（交代密码、写遗书、整理或送走物品）；"
-    "③告别或永别暗示（最后一次聊、帮我照顾好家人、以后就拜托你了）；"
-    "④绝望自贬并带有消失或解脱意味（我是累赘、没有我大家更好、早点消失）；"
-    "⑤伤害他人的意图或计划；"
-    "⑥隐喻或变体表达（想去很远很远的地方、去那边、谐音、拼音缩写、多语言混排）。\n"
-    "原话：{text}\n"
-    "判 WATCH 的门槛要高：仅当出现明显且持续的强烈痛苦（绝望、无助、撑不下去、长期失眠、持续想哭、"
-    "强烈孤独）时才输出 WATCH。"
-    "若只是一时心情不好、日常吐槽或抱怨（考试没考好、和室友闹别扭、作业多、看电影有点丧）"
-    "且不含上述任何信号，一律输出 SAFE。"
-    "只输出一个词。"
-)
+# 模板正文见 prompts.py（v2.0.0 P2 集中；CONFIRM/SCREEN 语义不变，变更须跑 safety + online_eval）。
 
 
 def _verdict(content: str) -> str:

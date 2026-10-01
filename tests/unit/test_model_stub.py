@@ -12,10 +12,11 @@ def test_stub_llm_returns_reply_content():
     assert isinstance(reply.content, str) and reply.content.strip()
 
 
-def test_stub_llm_crisis_confirm_returns_safe():
-    # 危机复核 prompt（CONFIRM_PROMPT，含「危机识别复核」）→ 常规话术返回 SAFE，避免误升级
+def test_stub_llm_crisis_confirm_returns_watch():
+    # 危机复核 prompt（CONFIRM_PROMPT，含「危机识别复核」）→ WATCH：维持规则词表级别
+    # （v2.0.0 P2：SAFE 会把规则级 L2 一律降为 L1，stub 演示断掉 L2 挂起链路）
     llm = StubLLM()
-    assert llm._decide("你是一名危机识别复核助手。原话：我想死") == "SAFE"
+    assert llm._decide("你是一名危机识别复核助手。原话：我想死") == "WATCH"
 
 
 def test_stub_llm_reply_echoes_user_words():

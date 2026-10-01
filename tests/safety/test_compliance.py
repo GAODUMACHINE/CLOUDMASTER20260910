@@ -105,7 +105,8 @@ def test_comp_003_minor_hour_thresholds():
     assert MINOR_PRE_MIN == 50 and MINOR_CLOSE_MIN == 60
     pre = evaluate({"session_started_at": T0.isoformat()}, {"age": 16}, T0 + timedelta(minutes=50))
     close = evaluate({"session_started_at": T0.isoformat()}, {"age": 16}, T0 + timedelta(minutes=60))
-    assert pre["fired"] is True and pre["messages"]
+    # v2.0.0 P2：预提醒（50min）非阻断——提示照发、当轮仍有疏导回复；收尾（60min）阻断。
+    assert pre["fired"] is False and pre["messages"]
     assert close["fired"] is True and close["messages"]
 
 
@@ -130,14 +131,15 @@ def test_comp_003_threshold_messages_are_non_threatening():
 
 def test_comp_004_declared_dependency_prompts():
     res = evaluate({"session_started_at": T0.isoformat()}, {"age": 22, "dependency_tendency": True}, T0)
-    assert res["fired"] is True
+    # v2.0.0 P2：依赖披露非阻断（弹窗语义，不吞当轮回复）
+    assert res["fired"] is False
     assert any("AI 生成" in m for m in res["messages"])
 
 
 def test_comp_004_observed_high_frequency_prompts():
     starts = [(T0 - timedelta(hours=1)).isoformat() for _ in range(DEP_FREQ_THRESHOLD)]
     res = evaluate({"session_started_at": T0.isoformat(), "recent_session_starts": starts}, {"age": 22}, T0)
-    assert res["fired"] is True
+    assert res["fired"] is False
     assert res["usage_meta"].get("dependency_observed") is True
 
 
