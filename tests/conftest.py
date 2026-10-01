@@ -14,7 +14,9 @@ from langchain_core.messages import AIMessage
 CONFIRM_MARK = "危机识别复核"
 SCREEN_MARK = "语义筛查"
 
-# 隐私红线：测试绝不许写入真实 data/private（本机会话、申诉台账、审核台账）。
+# 隐私红线：测试绝不许写入真实 data/private（本机会话、申诉台账、审核台账、来信台账）。
+# v2.0.0 P1：补 INBOX_DB_PATH（此前 mail_store 缺省可直写真实 inbox.jsonl，靠显式传参侥幸避开）
+# 与 BUSINESS_DB_PATH（统一业务库缺省路径，同样必须被隔离）。
 _PRIVATE_ENV = (
     "PROFILE_DB_PATH",
     "MEMORY_DB_PATH",
@@ -22,6 +24,8 @@ _PRIVATE_ENV = (
     "REVIEW_DB_PATH",
     "PRIVACY_DB_PATH",
     "RESOURCE_DB_PATH",
+    "INBOX_DB_PATH",
+    "BUSINESS_DB_PATH",
 )
 
 
