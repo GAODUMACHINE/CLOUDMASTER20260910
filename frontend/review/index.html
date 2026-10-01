@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CloudMaster · 人工审核台</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <h1>人工审核台<span class="tag">值班</span></h1>
+    <p class="sub">L2 危机工单：判定依据 → 上下文 → 结论写回，图随之恢复</p>
+    <p class="warn">仅限授权值班人员；令牌只留在本标签页，不写入网址栏与本地存储；本页不展示任何热线号码</p>
+  </header>
+
+  <main>
+    <section id="authPanel" class="card">
+      <h2>值班鉴权</h2>
+      <p class="muted">服务端未配置审核令牌时，本页一律拒绝访问（最小暴露）。</p>
+      <label class="field">审核令牌
+        <input id="token" type="password" placeholder="与服务端部署一致" autocomplete="off">
+      </label>
+      <button id="authBtn" class="primary">进入待审队列</button>
+      <p id="authMsg" class="error"></p>
+    </section>
+
+    <section id="queuePanel" class="card hidden">
+      <div class="row-between">
+        <h2>待审队列 <span id="queueCount" class="pill">0</span></h2>
+        <div class="row-gap">
+          <button id="refreshBtn" class="ghost small">刷新</button>
+          <button id="signOutBtn" class="ghost small">退出</button>
+        </div>
+      </div>
+      <p id="queueMsg" class="muted"></p>
+      <ul id="queueList" class="queue"></ul>
+    </section>
+
+    <section id="casePanel" class="card hidden">
+      <div class="row-between">
+        <h2>工单 <code id="caseTicket"></code></h2>
+        <button id="closeCaseBtn" class="ghost small">关闭</button>
+      </div>
+
+      <dl class="meta">
+        <dt>风险分级</dt><dd id="caseRisk"></dd>
+        <dt>判定依据</dt><dd id="caseBasis"></dd>
+        <dt>登记时间</dt><dd id="caseOpened"></dd>
+        <dt>受理摘要</dt><dd id="caseSummary"></dd>
+      </dl>
+
+      <h3>对话上下文</h3>
+      <p class="muted">仅在本页内存中展示，用于人工判断；不写入审核台账。</p>
+      <div id="caseContext" class="context"></div>
+
+      <h3>用户回信</h3>
+      <ul id="caseReplies" class="replies"></ul>
+
+      <h3>审核结论</h3>
+      <div class="decide">
+        <label class="field small">结论
+          <select id="decision"></select>
+        </label>
+        <label class="field small">联络对象
+          <select id="contactKind"></select>
+        </label>
+        <label class="field small">审核人标识
+          <input id="reviewer" type="text" placeholder="工号或值班代号，不要填真实姓名" autocomplete="off">
+        </label>
+        <button id="submitBtn" class="primary">提交结论</button>
+        <p id="caseMsg" class="error"></p>
+      </div>
+      <pre id="caseResult" class="result hidden"></pre>
+    </section>
+  </main>
+
+  <footer class="foot">结论唯一、不可覆写 · 台账 append-only 且不含对话原文 · 联络动作为人审后的人工执行</footer>
+  <script src="review.js" defer></script>
+</body>
+</html>
