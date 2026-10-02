@@ -1,4 +1,7 @@
-"""集成（v0.5.0 web）：注册年龄门 + chat + SSE 流式 + 邮件 HITL（全 fake，禁触网）。"""
+"""集成（v0.5.0 web）：注册年龄门 + chat + SSE 流式 + 邮件 HITL（全 fake，禁触网）。
+
+v2.0.0 P3：chat 凭证改 Bearer header；email/confirm 端点删除（3 用例连带删除，处置表 #12）。
+"""
 
 from __future__ import annotations
 
@@ -53,7 +56,7 @@ def test_register_minor_requires_guardian(tmp_path, fake_llm_empathic):
 def test_chat_returns_reply(tmp_path, fake_llm_empathic):
     c, store, _ = _client(tmp_path, fake_llm_empathic)
     key = c.post("/api/register", json={"age": 22, "email": "u@example.com"}).json()["profile_key"]
-    r = c.post("/api/chat", json={"profile_key": key, "text": "我今天有点累"})
+    r = c.post("/api/chat", json={"text": "我今天有点累"}, headers={"Authorization": f"Bearer {key}"})
     assert r.status_code == 200
     body = r.json()
     assert body["reply"] and body["risk_level"] == "none" and body["next_agent"] == "empathic"
@@ -62,62 +65,10 @@ def test_chat_returns_reply(tmp_path, fake_llm_empathic):
 def test_stream_sses_reply(tmp_path, fake_llm_empathic):
     c, store, _ = _client(tmp_path, fake_llm_empathic)
     key = c.post("/api/register", json={"age": 22, "email": "u@example.com"}).json()["profile_key"]
-    r = c.post("/api/chat/stream", json={"profile_key": key, "text": "你好"})
+    r = c.post("/api/chat/stream", json={"text": "你好"}, headers={"Authorization": f"Bearer {key}"})
     assert r.status_code == 200
     assert r.headers["content-type"].startswith("text/event-stream")
     assert "data: " in r.text
-
-
-def test_email_confirm_approve_sends(tmp_path, fake_llm_empathic):
-    from cloudmaster.mailer import RecordingChannel
-
-    c, _, mailer = _client(tmp_path, fake_llm_empathic, expected_token="tok")
-    # v1.3.0：默认 Mailer() 无通道（绝不假装发送成功）；此处注入记录通道以断言真实发送语义。
-    mailer._channel = RecordingChannel()
-    r = c.post(
-        "/api/email/confirm",
-        json={
-            "email": "u@example.com",
-            "subject": "s",
-            "body": "b",
-            "decision": "approve",
-            "confirm_token": "tok",
-        },
-    )
-    assert r.status_code == 200 and r.json()["sent"] is True
-    assert len(mailer.sent) == 1
-
-
-def test_email_confirm_unconfigured_channel_reports_failure(tmp_path, fake_llm_empathic):
-    """红线：未配置 SMTP 通道时不得假装发送成功。"""
-    c, _, _ = _client(tmp_path, fake_llm_empathic, expected_token="tok")
-    r = c.post(
-        "/api/email/confirm",
-        json={
-            "email": "u@example.com",
-            "subject": "s",
-            "body": "b",
-            "decision": "approve",
-            "confirm_token": "tok",
-        },
-    )
-    assert r.status_code == 200 and r.json()["sent"] is False
-
-
-def test_email_reject_not_sent(tmp_path, fake_llm_empathic):
-    c, _, mailer = _client(tmp_path, fake_llm_empathic, expected_token="tok")
-    r = c.post(
-        "/api/email/confirm",
-        json={
-            "email": "u@example.com",
-            "subject": "s",
-            "body": "b",
-            "decision": "reject",
-            "confirm_token": "tok",
-        },
-    )
-    assert r.status_code == 200 and r.json()["sent"] is False
-    assert mailer.sent == []
 
 
 def test_static_serves_cloud_glass(tmp_path, fake_llm_empathic):
@@ -206,7 +157,7 @@ def test_same_age_sessions_are_isolated(tmp_path, fake_llm_empathic):
     c, _, _, graph = _full_client(tmp_path, fake_llm_empathic)
     k1 = c.post("/api/register", json={"age": 22, "email": "u@example.com"}).json()["profile_key"]
     k2 = c.post("/api/register", json={"age": 22, "email": "u@example.com"}).json()["profile_key"]
-    c.post("/api/chat", json={"profile_key": k1, "text": "我今天有点累"})
+    c.post("/api/chat", json={"text": "我今天有点累"}, headers={"Authorization": f"Bearer {k1}"})
     assert graph.get_state({"configurable": {"thread_id": k1}}).values
     assert not graph.get_state({"configurable": {"thread_id": k2}}).values
 
@@ -215,7 +166,7 @@ def test_delete_profile_clears_profile_and_thread(tmp_path, fake_llm_empathic):
     """TC-PRIV-004：便捷退出/删除——最小画像与 thread 数据一并清除。"""
     c, store, _, graph = _full_client(tmp_path, fake_llm_empathic)
     key = c.post("/api/register", json={"age": 22, "email": "u@example.com"}).json()["profile_key"]
-    c.post("/api/chat", json={"profile_key": key, "text": "我今天有点累"})
+    c.post("/api/chat", json={"text": "我今天有点累"}, headers={"Authorization": f"Bearer {key}"})
     r = c.delete(f"/api/profile/{key}")
     assert r.status_code == 200
     assert r.json() == {"ok": True, "profile_deleted": True, "thread_deleted": True}

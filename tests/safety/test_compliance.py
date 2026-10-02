@@ -184,9 +184,9 @@ def test_comp_006_no_hardcoded_tel_in_frontend(tmp_path, fake_llm_empathic):
 def test_comp_007_review_console_unauthorized_blocked(tmp_path, fake_llm_crisis_danger):
     c = _client(tmp_path, fake_llm_crisis_danger)
     key = c.post("/api/register", json={"age": 22, "email": MAIL}).json()["profile_key"]
-    c.post("/api/chat", json={"profile_key": key, "text": "我不想活了"})
+    c.post("/api/chat", json={"text": "我不想活了"}, headers={"Authorization": f"Bearer {key}"})
     assert c.get("/api/review/pending").status_code == 403
-    assert c.get("/api/review/pending", params={"token": "guess"}).status_code == 403
+    assert c.get("/api/review/pending", headers={"Authorization": "Bearer guess"}).status_code == 403
 
 
 # ---- TC-COMP-008 会话导出不含真实身份字段（邮箱属最小必要例外，须可见可删） ----

@@ -13,6 +13,8 @@ from cloudmaster.review_queue import ReviewLedger
 from cloudmaster.web_app import create_app
 
 TOKEN = "review-token"
+# v2.0.0 P3：审核令牌改走 Authorization Bearer header（原 ?token= query 已废除）。
+AUTH = {"Authorization": f"Bearer {TOKEN}"}
 
 
 def _client(tmp_path, llm, *, token=TOKEN):
@@ -42,7 +44,7 @@ def _register(client, age=22, **extra):
 def test_l2_chat_opens_review_case(tmp_path, fake_llm_crisis_danger):
     c, _ = _client(tmp_path, fake_llm_crisis_danger)
     key = _register(c)
-    r = c.post("/api/chat", json={"profile_key": key, "text": "我不想活了，想自杀"})
+    r = c.post("/api/chat", json={"text": "我不想活了，想自杀"}, headers={"Authorization": f"Bearer {key}"})
     assert r.status_code == 200
     body = r.json()
     assert body["risk_level"] == "high"
@@ -52,44 +54,45 @@ def test_l2_chat_opens_review_case(tmp_path, fake_llm_crisis_danger):
 def test_normal_chat_creates_no_review_case(tmp_path, fake_llm_empathic):
     c, _ = _client(tmp_path, fake_llm_empathic)
     key = _register(c)
-    body = c.post("/api/chat", json={"profile_key": key, "text": "今天有点累"}).json()
+    body = c.post("/api/chat", json={"text": "今天有点累"}, headers={"Authorization": f"Bearer {key}"}).json()
     assert body["risk_level"] == "none" and body["escalation"] is None
-    assert c.get("/api/review/pending", params={"token": TOKEN}).json()["count"] == 0
+    assert c.get("/api/review/pending", headers=AUTH).json()["count"] == 0
 
 
 def test_review_console_requires_token(tmp_path, fake_llm_crisis_danger):
     c, _ = _client(tmp_path, fake_llm_crisis_danger)
     assert c.get("/api/review/pending").status_code == 403
-    assert c.get("/api/review/pending", params={"token": "wrong"}).status_code == 403
-    assert c.get("/api/review/pending", params={"token": TOKEN}).status_code == 200
+    assert c.get("/api/review/pending", headers={"Authorization": "Bearer wrong"}).status_code == 403
+    assert c.get("/api/review/pending", headers=AUTH).status_code == 200
 
 
 def test_review_console_disabled_without_configured_token(tmp_path, fake_llm_empathic):
     """未配置审核令牌时必须拒绝开放（最小暴露），而不是默认放行。"""
     c, _ = _client(tmp_path, fake_llm_empathic, token="")
-    assert c.get("/api/review/pending", params={"token": ""}).status_code == 403
-    assert c.get("/api/review/pending", params={"token": "anything"}).status_code == 403
+    # 未配置令牌时任何凭证（空/任意）都必须 403
+    assert c.get("/api/review/pending", headers={"Authorization": "Bearer "}).status_code == 403
+    assert c.get("/api/review/pending", headers={"Authorization": "Bearer anything"}).status_code == 403
 
 
 def test_review_approve_closes_case_with_audit_and_followup(tmp_path, fake_llm_crisis_danger):
     c, _ = _client(tmp_path, fake_llm_crisis_danger)
     key = _register(c)
-    ticket = c.post("/api/chat", json={"profile_key": key, "text": "我不想活了"}).json()["escalation"][
-        "ticket_id"
-    ]
+    ticket = c.post(
+        "/api/chat", json={"text": "我不想活了"}, headers={"Authorization": f"Bearer {key}"}
+    ).json()["escalation"]["ticket_id"]
 
-    pending = c.get("/api/review/pending", params={"token": TOKEN}).json()
+    pending = c.get("/api/review/pending", headers=AUTH).json()
     assert pending["count"] == 1 and pending["pending"][0]["ticket_id"] == ticket
     assert set(pending["decisions"]) == {"approve", "block"}
     assert "guardian" in pending["contact_kinds"]
 
-    detail = c.get(f"/api/review/{ticket}", params={"token": TOKEN}).json()
+    detail = c.get(f"/api/review/{ticket}", headers=AUTH).json()
     assert detail["case"]["basis_level"] == "L2"
     assert detail["context"], "审核台应能看到上下文"
 
     r = c.post(
         "/api/review/decision",
-        params={"token": TOKEN},
+        headers=AUTH,
         json={"ticket_id": ticket, "decision": "approve", "reviewer": "A1", "contact_kind": "guardian"},
     )
     assert r.status_code == 200
@@ -97,18 +100,18 @@ def test_review_approve_closes_case_with_audit_and_followup(tmp_path, fake_llm_c
     assert out["ok"] and out["pending"] == 0
     assert out["audit_log"] and out["audit_log"][0]["decision"] == "approve"
     assert out["contact_log"] and out["next_followup"]
-    assert c.get("/api/review/pending", params={"token": TOKEN}).json()["count"] == 0
+    assert c.get("/api/review/pending", headers=AUTH).json()["count"] == 0
 
 
 def test_review_block_records_audit_only(tmp_path, fake_llm_crisis_danger):
     c, _ = _client(tmp_path, fake_llm_crisis_danger)
     key = _register(c)
-    ticket = c.post("/api/chat", json={"profile_key": key, "text": "我不想活了"}).json()["escalation"][
-        "ticket_id"
-    ]
+    ticket = c.post(
+        "/api/chat", json={"text": "我不想活了"}, headers={"Authorization": f"Bearer {key}"}
+    ).json()["escalation"]["ticket_id"]
     out = c.post(
         "/api/review/decision",
-        params={"token": TOKEN},
+        headers=AUTH,
         json={"ticket_id": ticket, "decision": "block", "reviewer": "A1", "contact_kind": "none"},
     ).json()
     assert out["audit_log"] and not out["contact_log"] and out["next_followup"] is None
@@ -117,48 +120,45 @@ def test_review_block_records_audit_only(tmp_path, fake_llm_crisis_danger):
 def test_review_decision_rejects_unknown_and_double(tmp_path, fake_llm_crisis_danger):
     c, _ = _client(tmp_path, fake_llm_crisis_danger)
     key = _register(c)
-    ticket = c.post("/api/chat", json={"profile_key": key, "text": "我不想活了"}).json()["escalation"][
-        "ticket_id"
-    ]
+    ticket = c.post(
+        "/api/chat", json={"text": "我不想活了"}, headers={"Authorization": f"Bearer {key}"}
+    ).json()["escalation"]["ticket_id"]
     assert (
         c.post(
             "/api/review/decision",
-            params={"token": TOKEN},
+            headers=AUTH,
             json={"ticket_id": "HR-nope", "decision": "approve"},
         ).status_code
         == 404
     )
-    assert (
-        c.post("/api/review/decision", params={"token": TOKEN}, json={"decision": "approve"}).status_code
-        == 400
-    )
+    assert c.post("/api/review/decision", headers=AUTH, json={"decision": "approve"}).status_code == 400
     c.post(
         "/api/review/decision",
-        params={"token": TOKEN},
+        headers=AUTH,
         json={"ticket_id": ticket, "decision": "approve"},
     )
     assert (
         c.post(
-            "/api/review/decision", params={"token": TOKEN}, json={"ticket_id": ticket, "decision": "block"}
+            "/api/review/decision", headers=AUTH, json={"ticket_id": ticket, "decision": "block"}
         ).status_code
         == 404
     )
-    assert c.get(f"/api/review/{ticket}", params={"token": TOKEN}).status_code == 404
+    assert c.get(f"/api/review/{ticket}", headers=AUTH).status_code == 404
 
 
 def test_review_decision_requires_token(tmp_path, fake_llm_crisis_danger):
     c, _ = _client(tmp_path, fake_llm_crisis_danger)
     key = _register(c)
-    ticket = c.post("/api/chat", json={"profile_key": key, "text": "我不想活了"}).json()["escalation"][
-        "ticket_id"
-    ]
+    ticket = c.post(
+        "/api/chat", json={"text": "我不想活了"}, headers={"Authorization": f"Bearer {key}"}
+    ).json()["escalation"]["ticket_id"]
     assert (
         c.post("/api/review/decision", json={"ticket_id": ticket, "decision": "approve"}).status_code == 403
     )
     assert (
         c.post(
             "/api/review/decision",
-            params={"token": "wrong"},
+            headers={"Authorization": "Bearer wrong"},
             json={"ticket_id": ticket, "decision": "approve"},
         ).status_code
         == 403
@@ -182,7 +182,7 @@ def test_assessment_normal_band_creates_no_case(tmp_path, fake_llm_empathic):
         "/api/assessment", json={"answers": {k: "rare" for k in ("mood", "sleep", "anxiety", "function")}}
     ).json()
     assert body["band"] == "需要留意" and body["urgent"] is False
-    assert c.get("/api/review/pending", params={"token": TOKEN}).json()["count"] == 0
+    assert c.get("/api/review/pending", headers=AUTH).json()["count"] == 0
 
 
 def test_assessment_urgent_escalates_to_review_console(tmp_path, fake_llm_empathic):
@@ -191,7 +191,7 @@ def test_assessment_urgent_escalates_to_review_console(tmp_path, fake_llm_empath
         "/api/assessment", json={"answers": {k: "always" for k in ("mood", "sleep", "anxiety", "function")}}
     ).json()
     assert body["urgent"] is True
-    pending = c.get("/api/review/pending", params={"token": TOKEN}).json()
+    pending = c.get("/api/review/pending", headers=AUTH).json()
     assert pending["count"] == 1
     assert pending["pending"][0]["basis_level"] == "self-assessment"
 
@@ -224,7 +224,7 @@ def test_privacy_retention_update_and_reject(tmp_path, fake_llm_empathic):
 def test_privacy_export_contains_only_own_minimal_profile(tmp_path, fake_llm_crisis_danger):
     c, _ = _client(tmp_path, fake_llm_crisis_danger)
     key = _register(c)
-    c.post("/api/chat", json={"profile_key": key, "text": "你好"})
+    c.post("/api/chat", json={"text": "你好"}, headers={"Authorization": f"Bearer {key}"})
     body = c.get(f"/api/privacy/{key}/export").json()
     assert body["profile_key"] == key
     assert body["profile"]["age"] == 22 and body["profile"]["email"] == "u@example.com"
@@ -263,15 +263,18 @@ def test_hotline_registration_requires_token_and_reviewer(tmp_path, fake_llm_emp
     c, _ = _client(tmp_path, fake_llm_empathic)
     payload = {"title": "某市心理援助热线", "tel": "010-12345678", "reviewer": "A1", "kind": "hotline"}
     assert c.post("/api/resources/hotline", json=payload).status_code == 403
-    assert c.post("/api/resources/hotline", params={"token": "wrong"}, json=payload).status_code == 403
+    assert (
+        c.post("/api/resources/hotline", headers={"Authorization": "Bearer wrong"}, json=payload).status_code
+        == 403
+    )
     assert c.get("/api/resources").json()["hotlines"] == []
 
-    ok = c.post("/api/resources/hotline", params={"token": TOKEN}, json=payload)
+    ok = c.post("/api/resources/hotline", headers=AUTH, json=payload)
     assert ok.status_code == 200
     approved = c.get("/api/resources").json()["hotlines"]
     assert len(approved) == 1 and approved[0]["tel"] == "010-12345678"
 
-    bad = c.post("/api/resources/hotline", params={"token": TOKEN}, json={**payload, "reviewer": ""})
+    bad = c.post("/api/resources/hotline", headers=AUTH, json={**payload, "reviewer": ""})
     assert bad.status_code == 400
 
 
@@ -282,7 +285,7 @@ def test_l2_chat_returns_hold_notice_not_user_echo(tmp_path, fake_llm_crisis_dan
     """L2 停在 human_review 中断点时，不得把用户原话当「AI 回复」回显。"""
     c, _ = _client(tmp_path, fake_llm_crisis_danger)
     key = _register(c)
-    body = c.post("/api/chat", json={"profile_key": key, "text": "我不想活了"}).json()
+    body = c.post("/api/chat", json={"text": "我不想活了"}, headers={"Authorization": f"Bearer {key}"}).json()
     assert body["risk_level"] == "high"
     assert body["held_for_review"] is True
     assert body["reply"] != "我不想活了", "中断态下回显了用户原话"
@@ -294,22 +297,24 @@ def test_non_crisis_message_while_pending_cannot_bypass_review(tmp_path, fake_ll
     """待审期间发一条非危机消息不得绕过人工审核：不生成自动回复、工单不失效。"""
     c, _ = _client(tmp_path, fake_llm_crisis_danger)
     key = _register(c)
-    c.post("/api/chat", json={"profile_key": key, "text": "我不想活了"})
+    c.post("/api/chat", json={"text": "我不想活了"}, headers={"Authorization": f"Bearer {key}"})
 
-    again = c.post("/api/chat", json={"profile_key": key, "text": "我先去吃饭了"}).json()
+    again = c.post(
+        "/api/chat", json={"text": "我先去吃饭了"}, headers={"Authorization": f"Bearer {key}"}
+    ).json()
     assert again["held_for_review"] is True
     assert again["reply"] != "我先去吃饭了"
 
-    pending = c.get("/api/review/pending", params={"token": TOKEN}).json()
+    pending = c.get("/api/review/pending", headers=AUTH).json()
     assert pending["count"] == 1, "挂起期间不得重复登记工单"
     ticket = pending["pending"][0]["ticket_id"]
 
-    detail = c.get(f"/api/review/{ticket}", params={"token": TOKEN}).json()
+    detail = c.get(f"/api/review/{ticket}", headers=AUTH).json()
     assert any(m["text"] == "我先去吃饭了" for m in detail["context"]), "挂起期间的消息仍须留痕供审核"
 
     ok = c.post(
         "/api/review/decision",
-        params={"token": TOKEN},
+        headers=AUTH,
         json={"ticket_id": ticket, "decision": "approve", "reviewer": "A1"},
     )
     assert ok.status_code == 200, "挂起态被绕过，工单已失效"
@@ -319,17 +324,15 @@ def test_review_decision_on_orphan_case_conflicts(tmp_path, fake_llm_crisis_dang
     """会话已删除时裁决必须 409，且不得把台账闭环（禁止静默成功）。"""
     c, _ = _client(tmp_path, fake_llm_crisis_danger)
     key = _register(c)
-    ticket = c.post("/api/chat", json={"profile_key": key, "text": "我不想活了"}).json()["escalation"][
-        "ticket_id"
-    ]
+    ticket = c.post(
+        "/api/chat", json={"text": "我不想活了"}, headers={"Authorization": f"Bearer {key}"}
+    ).json()["escalation"]["ticket_id"]
     assert c.delete(f"/api/profile/{key}").json()["ok"] is True
 
-    r = c.post(
-        "/api/review/decision", params={"token": TOKEN}, json={"ticket_id": ticket, "decision": "approve"}
-    )
+    r = c.post("/api/review/decision", headers=AUTH, json={"ticket_id": ticket, "decision": "approve"})
     assert r.status_code == 409
     assert "会话" in r.json()["detail"]
-    assert c.get("/api/review/pending", params={"token": TOKEN}).json()["count"] == 1, "台账被静默闭环"
+    assert c.get("/api/review/pending", headers=AUTH).json()["count"] == 1, "台账被静默闭环"
 
 
 # ---------- 审核台值班界面（静态页） ----------

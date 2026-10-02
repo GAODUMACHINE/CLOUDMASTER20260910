@@ -11,7 +11,11 @@ from .config import settings
 
 
 def create_llm() -> BaseChatModel:
-    """构造生产 LLM。密钥/base_url 全部来自环境注入，代码不硬编码。"""
+    """构造生产 LLM。密钥/base_url 全部来自环境注入，代码不硬编码。
+
+    streaming=True 使 invoke 期间即发 token 回调——web/sse.py 的 stream_mode="messages"
+    依赖它逐 token 下发（v2.0.0 P3 真 SSE，ADR-011 §3）。
+    """
     if not settings.configured():
         raise RuntimeError("生产模型未配置：请提供 QWEN_API_KEY 与 QWEN_API_HOST/.env。测试请注入 fake LLM。")
     return ChatOpenAI(
@@ -19,6 +23,7 @@ def create_llm() -> BaseChatModel:
         api_key=settings.qwen_api_key,
         base_url=settings.resolved_base_url,
         temperature=0.3,
+        streaming=True,
     )
 
 

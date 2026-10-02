@@ -69,7 +69,11 @@ def test_report_draft_requires_registration(tmp_path, fake_llm_empathic):
 def test_report_draft_contains_no_raw_conversation(tmp_path, fake_llm_empathic):
     c, _, _ = _client(tmp_path, fake_llm_empathic)
     key = _register(c)
-    c.post("/api/chat", json={"profile_key": key, "text": "这是一句不该出现在报告里的原话"})
+    c.post(
+        "/api/chat",
+        json={"text": "这是一句不该出现在报告里的原话"},
+        headers={"Authorization": f"Bearer {key}"},
+    )
     draft = c.get(f"/api/report/{key}").json()
     assert draft["report_id"].startswith("RP-")
     assert draft["contains_raw_conversation"] is False
@@ -174,7 +178,7 @@ def test_inbox_poll_requires_reviewer_token(tmp_path, fake_llm_empathic):
 
 def test_inbox_poll_without_channel_is_503(tmp_path, fake_llm_empathic):
     c, _, _ = _client(tmp_path, fake_llm_empathic, inbox=None)
-    assert c.post("/api/inbox/poll", params={"token": TOKEN}).status_code == 503
+    assert c.post("/api/inbox/poll", headers={"Authorization": f"Bearer {TOKEN}"}).status_code == 503
 
 
 def test_inbox_poll_stores_replies_and_dedups(tmp_path, fake_llm_empathic):
@@ -192,14 +196,15 @@ def test_inbox_poll_stores_replies_and_dedups(tmp_path, fake_llm_empathic):
     ]
     fake = FakeInbox(mails)
     c, _, _ = _client(tmp_path, fake_llm_empathic, inbox=fake)
-    out = c.post("/api/inbox/poll", params={"token": TOKEN}).json()
+    auth = {"Authorization": f"Bearer {TOKEN}"}
+    out = c.post("/api/inbox/poll", headers=auth).json()
     assert out["fetched"] == 2 and out["stored"] == 2
-    listed = c.get("/api/inbox", params={"token": TOKEN}).json()
+    listed = c.get("/api/inbox", headers=auth).json()
     assert listed["count"] == 2
     # 同一批再次拉取：uid 去重，不再重复入库
-    out2 = c.post("/api/inbox/poll", params={"token": TOKEN}).json()
+    out2 = c.post("/api/inbox/poll", headers=auth).json()
     assert out2["stored"] == 0
-    assert c.get("/api/inbox", params={"token": TOKEN}).json()["count"] == 2
+    assert c.get("/api/inbox", headers=auth).json()["count"] == 2
 
 
 def test_inbox_stop_unsubscribes_matching_profile(tmp_path, fake_llm_empathic):
@@ -236,7 +241,7 @@ def test_inbox_stop_unsubscribes_matching_profile(tmp_path, fake_llm_empathic):
         reviewer_token=TOKEN,
     )
     c3 = TestClient(app)
-    out = c3.post("/api/inbox/poll", params={"token": TOKEN}).json()
+    out = c3.post("/api/inbox/poll", headers={"Authorization": f"Bearer {TOKEN}"}).json()
     assert out["unsubscribed"] == [key]
     assert store.get(key)["report_opt_in"] is False
 
@@ -247,7 +252,7 @@ def test_inbox_poll_propagates_imap_failure(tmp_path, fake_llm_empathic):
     fake = FakeInbox([])
     fake.fail_with = InboxError("IMAP 连接失败：boom")
     c, _, _ = _client(tmp_path, fake_llm_empathic, inbox=fake)
-    r = c.post("/api/inbox/poll", params={"token": TOKEN})
+    r = c.post("/api/inbox/poll", headers={"Authorization": f"Bearer {TOKEN}"})
     assert r.status_code == 502 and "IMAP" in r.json()["detail"]
 
 
@@ -268,8 +273,8 @@ def test_review_detail_shows_linked_replies(tmp_path, fake_llm_crisis_danger):
     )
     c, _, _ = _client(tmp_path, fake_llm_crisis_danger, inbox=fake)
     key = _register(c)
-    ticket = c.post("/api/chat", json={"profile_key": key, "text": "我不想活了"}).json()["escalation"][
-        "ticket_id"
-    ]
-    detail = c.get(f"/api/review/{ticket}", params={"token": TOKEN}).json()
+    ticket = c.post(
+        "/api/chat", json={"text": "我不想活了"}, headers={"Authorization": f"Bearer {key}"}
+    ).json()["escalation"]["ticket_id"]
+    detail = c.get(f"/api/review/{ticket}", headers={"Authorization": f"Bearer {TOKEN}"}).json()
     assert "replies" in detail and isinstance(detail["replies"], list)
