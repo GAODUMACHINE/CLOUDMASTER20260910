@@ -9,8 +9,10 @@
 - 同一 thread 未决唯一：进程内靠共享连接锁串行；跨进程双登记由部分唯一索引
   uq_review_pending_thread 在数据库层拦截，open_case 捕获 IntegrityError 后回滚重查、
   返回既有案件——与旧实现「不重复登记、返回既有案件」语义一致。
-- 返回 dict 与旧 JSONL 记录同形：保留恒为 None 的 decision 键；不外泄 v2.0.0 新增的
-  source 列（该列供 P4 评估链路使用，暂不进入旧契约形态）。
+- 返回 dict 与旧 JSONL 记录同形：保留恒为 None 的 decision 键。v2.0.0 P4 起 source 列
+  进入返回契约（open_case / pending_for_thread / list_pending / get 的 dict 均带 source）：
+  "chat"（对话链路升级开案）/"assessment"（自评链路开案）——消费方（graph 闭环、审核台
+  展示）据此走 assessment 工单的专用闭环分支，不再靠 thread_id 前缀嗅探。
 - 读方法同样持锁：每个数据库文件进程内仅一连接（check_same_thread=False），跨线程共用
   同一连接的游标必须串行。
 - 红线不变：台账只落判定依据（截 500）与摘要（截 200），**绝不落对话原文**；联系方式
@@ -43,6 +45,9 @@ CONTACT_KINDS = {
 
 LEDGER_SCHEMA_REQUIRED = ("ticket_id", "thread_id", "decision")
 
+# 工单来源词表（v2.0.0 P4 起进入返回契约）：chat=对话链路升级开案，assessment=自评链路开案。
+REVIEW_SOURCES = ("chat", "assessment")
+
 
 class ReviewError(ValueError):
     pass
@@ -63,7 +68,7 @@ class ReviewLedger:
 
     @staticmethod
     def _case_of_row(row: sqlite3.Row) -> dict[str, Any]:
-        """review_cases 行 → 旧 JSONL 开案记录同形 dict（decision 恒 None，source 列不外泄）。"""
+        """review_cases 行 → 旧 JSONL 开案记录同形 dict（decision 恒 None；source 自 P4 起进入契约）。"""
         return {
             "ticket_id": row["ticket_id"],
             "thread_id": row["thread_id"],
@@ -74,6 +79,7 @@ class ReviewLedger:
             "basis_reason": row["basis_reason"],
             "context_summary": row["context_summary"],
             "status": row["status"],
+            "source": row["source"],
             "decision": None,
         }
 
@@ -86,8 +92,15 @@ class ReviewLedger:
         basis_reason: str = "",
         profile_key: str = "",
         context_summary: str = "",
+        source: str = "chat",
     ) -> dict[str, Any]:
-        """登记待审案件。同一 thread 已有未决案件时不重复登记（返回既有案件）。"""
+        """登记待审案件。同一 thread 已有未决案件时不重复登记（返回既有案件）。
+
+        source 标记开案链路（chat=对话升级 / assessment=自评 urgent），供审核台裁决时
+        选择闭环分支——自评 thread 不是图 thread，不能走图恢复（ADR-011 §4）。
+        """
+        if source not in REVIEW_SOURCES:
+            raise ReviewError(f"不支持的工单来源: {source}")
         record = {
             "ticket_id": "HR-" + secrets.token_hex(6),
             "thread_id": thread_id,
@@ -99,6 +112,7 @@ class ReviewLedger:
             # 仅摘要，不含对话原文（隐私硬约束）。
             "context_summary": context_summary[:200],
             "status": "pending",
+            "source": source,
             "decision": None,
         }
         with self._lock:
@@ -109,8 +123,8 @@ class ReviewLedger:
                 self._conn.execute(
                     "INSERT INTO review_cases"
                     " (ticket_id, thread_id, profile_key, opened_at, risk_level,"
-                    " basis_level, basis_reason, context_summary, status)"
-                    " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    " basis_level, basis_reason, context_summary, status, source)"
+                    " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     (
                         record["ticket_id"],
                         thread_id,
@@ -121,6 +135,7 @@ class ReviewLedger:
                         record["basis_reason"],
                         record["context_summary"],
                         "pending",
+                        source,
                     ),
                 )
                 self._conn.commit()
@@ -138,7 +153,7 @@ class ReviewLedger:
         with self._lock:
             row = self._conn.execute(
                 "SELECT ticket_id, thread_id, profile_key, opened_at, risk_level, basis_level,"
-                " basis_reason, context_summary, status"
+                " basis_reason, context_summary, status, source"
                 " FROM review_cases WHERE thread_id = ? AND status = 'pending'",
                 (thread_id,),
             ).fetchone()
@@ -149,7 +164,7 @@ class ReviewLedger:
         with self._lock:
             rows = self._conn.execute(
                 "SELECT ticket_id, thread_id, profile_key, opened_at, risk_level, basis_level,"
-                " basis_reason, context_summary, status"
+                " basis_reason, context_summary, status, source"
                 " FROM review_cases WHERE status = 'pending' ORDER BY opened_at, ticket_id"
             ).fetchall()
         return [self._case_of_row(row) for row in rows]
@@ -159,7 +174,7 @@ class ReviewLedger:
         with self._lock:
             row = self._conn.execute(
                 "SELECT ticket_id, thread_id, profile_key, opened_at, risk_level, basis_level,"
-                " basis_reason, context_summary, status"
+                " basis_reason, context_summary, status, source"
                 " FROM review_cases WHERE ticket_id = ? AND status = 'pending'",
                 (ticket_id,),
             ).fetchone()

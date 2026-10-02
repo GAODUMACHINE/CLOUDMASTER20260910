@@ -9,7 +9,9 @@
 - 惰性默认不落盘：未设置键只返回 DEFAULT_RETENTION_DAYS，不写入任何行（隐私最小化）。
 - created_at 首次落库后跨次更新保持不变（保留期可改、删除起算点不可改），
   故 INSERT OR REPLACE 前先 SELECT 旧 created_at。
-- 审计（retention_changed 等）按计划 P4 起在 DAL 层统一记录，本层暂不写审计。
+- 审计自 v2.0.0 P4 起在本层统一记录（db.record_audit，audit_events append-only 触发器
+  兜底禁改禁删）：retention_changed（改保留期）/ data_exported（导出）/ purge_executed
+  （批量清除）。审计事件只落匿名键与动作参数，绝不落对话内容。
 """
 
 from __future__ import annotations
@@ -58,6 +60,15 @@ class PrivacyStore:
                 (key, days, record["created_at"], record["updated_at"]),
             )
             self._conn.commit()
+        # 保留期是《办法》第 17/19 条项下的数据主体权利行权痕迹：落 append-only 审计
+        # （created_at 一并记录，证明删除起算点未被本次变更推移）。
+        db.record_audit(
+            self._conn,
+            self._lock,
+            "retention_changed",
+            key,
+            {"days": days, "created_at": record["created_at"]},
+        )
         return record
 
     def get_retention(self, key: str) -> dict[str, Any]:
@@ -105,3 +116,27 @@ class PrivacyStore:
             cur = self._conn.execute("DELETE FROM privacy_settings WHERE anon_key = ?", (key,))
             self._conn.commit()
             return cur.rowcount > 0
+
+    def all_keys(self) -> list[str]:
+        """全部已落库保留期偏好的匿名键（按 rowid 稳定序）。
+
+        保留期真删除（jobs/purge）的扫描入口：惰性默认键未落库、无会话数据可删，
+        故只需扫描已落库键；不存在的键 purge_schedule 走「尚无创建时间」分支自然跳过。
+        """
+        with self._lock:
+            rows = self._conn.execute("SELECT anon_key FROM privacy_settings ORDER BY rowid").fetchall()
+        return [row["anon_key"] for row in rows]
+
+    def log_export(self, profile_key: str) -> None:
+        """导出行为审计（数据主体知情权：用户可查知自己的数据曾被导出过几次）。"""
+        db.record_audit(self._conn, self._lock, "data_exported", profile_key)
+
+    def log_purge(self, purged_keys: list[str]) -> None:
+        """批量清除审计（jobs/purge 每轮执行后调用；anon_key 留空、键清单入 detail）。"""
+        db.record_audit(
+            self._conn,
+            self._lock,
+            "purge_executed",
+            "",
+            {"purged": purged_keys, "count": len(purged_keys)},
+        )

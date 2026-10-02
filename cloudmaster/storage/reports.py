@@ -7,8 +7,8 @@
   json.loads 的精确副本：报告模板字段演进无需改表结构。
 - 发送记录只存交付元数据、不落正文（ADR-009）；返回键形与旧一致——收件地址键名是
   "to" 而非 "to_addr"（web 前端已按 "to" 消费）。
-- report_sents.profile_key 取自 report_drafts 同 report_id 行（无草稿行则 ''）：这是
-  P3 修复 report/status 跨用户泄漏的过滤列前置；本阶段 sent_records() 仍返回全量。
+- report_sents.profile_key 取自 report_drafts 同 report_id 行（无草稿行则 ''）：
+  v2.0.0 P3 起 sent_records(profile_key) 据此过滤，修复 report/status 跨用户泄漏。
 - mark_sent 用 UPSERT（ON CONFLICT DO UPDATE）：同 report_id 重发覆盖旧记录且不改变
   插入序——对齐旧 dict 赋值"更新值不移动键位置"的语义。
 - MailStoreError 自包含复制（旧模块 P3 才删，过渡期允许重复；异常类与中文文案逐字一致）。
@@ -98,12 +98,18 @@ class ReportRegistry:
             self._conn.commit()
         return record
 
-    def sent_records(self) -> list[dict[str, Any]]:
-        """全部发送记录，按插入序（本阶段返回全量；P3 起按 profile_key 过滤）。"""
+    def sent_records(self, profile_key: str | None = None) -> list[dict[str, Any]]:
+        """发送记录，按插入序。profile_key 缺省返回全量（运维视角）；传入则只回本人记录
+        ——v2.0.0 P3 起 report/status 以本人 key 调用，修复跨用户泄漏（任一请求者
+        曾能看到全部人的发送记录）。"""
+        query = "SELECT report_id, to_addr, subject, sent_at, message_id FROM report_sents"
+        params: tuple[Any, ...] = ()
+        if profile_key is not None:
+            query += " WHERE profile_key = ?"
+            params = (profile_key,)
+        query += " ORDER BY rowid"
         with self._lock:
-            rows = self._conn.execute(
-                "SELECT report_id, to_addr, subject, sent_at, message_id FROM report_sents ORDER BY rowid"
-            ).fetchall()
+            rows = self._conn.execute(query, params).fetchall()
         return [
             {
                 "report_id": r["report_id"],
@@ -114,6 +120,19 @@ class ReportRegistry:
             }
             for r in rows
         ]
+
+    def delete_for_profile(self, profile_key: str) -> int:
+        """清除该匿名标识的全部报告草稿与发送台账（保留期治理用，jobs/purge 调用）。
+
+        先删 sents 再删 drafts（外键无约束，顺序只为日志可读）；返回发送记录删除行数。
+        草稿含聚合结论（无对话原文，ADR-009 红线），保留期到点即随画像一并清除。
+        """
+        with self._lock:
+            cur = self._conn.execute("DELETE FROM report_sents WHERE profile_key = ?", (profile_key,))
+            sent_deleted = cur.rowcount
+            self._conn.execute("DELETE FROM report_drafts WHERE profile_key = ?", (profile_key,))
+            self._conn.commit()
+        return int(sent_deleted)
 
     def is_sent(self, report_id: str) -> bool:
         with self._lock:

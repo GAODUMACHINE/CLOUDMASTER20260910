@@ -128,11 +128,21 @@ class ProfileStore:
             )
             self._conn.commit()
 
-    def delete(self, key: str) -> bool:
+    def delete(self, key: str, *, reason: str = "user_delete") -> bool:
+        """删除画像（幂等，不泄露标识是否存在）。成功删除时落 data_deleted 审计。
+
+        reason 取值：user_delete（用户主动退出，《办法》第 19 条）/ retention_purge
+        （保留期到点清除，jobs/purge）——审计里区分「用户行权」与「系统履约」两种删除。
+        """
         with self._lock:
             cur = self._conn.execute("DELETE FROM profiles WHERE anon_key = ?", (key,))
             self._conn.commit()
-        return cur.rowcount > 0
+        deleted = cur.rowcount > 0
+        if deleted:
+            # 只在确有行被删时落审计：幂等重删（含不存在的键）不产生噪声事件，
+            # 也不泄露「该匿名标识是否存在」。
+            db.record_audit(self._conn, self._lock, "data_deleted", key, {"reason": reason})
+        return deleted
 
     def clear_all(self) -> None:
         with self._lock:
