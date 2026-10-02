@@ -11,7 +11,9 @@
   v2.0.0 P3 起 sent_records(profile_key) 据此过滤，修复 report/status 跨用户泄漏。
 - mark_sent 用 UPSERT（ON CONFLICT DO UPDATE）：同 report_id 重发覆盖旧记录且不改变
   插入序——对齐旧 dict 赋值"更新值不移动键位置"的语义。
-- MailStoreError 自包含复制（旧模块 P3 才删，过渡期允许重复；异常类与中文文案逐字一致）。
+- MailStoreError 统一从 storage.inbox 导入（v2.0.0 收口：过渡期两 DAL 各持同名异类，
+  会让 `pytest.raises(MailStoreError)` 按导入路径接不住 reports 侧抛出——单一类身份，
+  文案不变）。
 """
 
 from __future__ import annotations
@@ -20,10 +22,9 @@ import json
 from typing import Any
 
 from . import db
+from .inbox import MailStoreError
 
-
-class MailStoreError(ValueError):
-    """来信/报告台账参数错误（自包含复制自旧 mail_store.MailStoreError，P3 删旧模块）。"""
+__all__ = ["MailStoreError", "ReportRegistry"]
 
 
 class ReportRegistry:

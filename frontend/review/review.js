@@ -159,7 +159,7 @@
     ul.textContent = '';
     if (!items.length) { ul.appendChild(el('li', 'muted', '（暂无用户回信）')); return; }
     items.forEach(function (r) {
-      ul.appendChild(el('li', null, fmtTime(r.received_at || r.time) + '：' + (r.text || r.body || '')));
+      ul.appendChild(el('li', null, fmtTime(r.date || r.fetched_at) + '：' + (r.text || r.body || '')));
     });
   }
 

@@ -5,9 +5,9 @@
 report_drafts / report_sents 两表）。v2.0.0 P6 将本模块降级为同名再导出，既有
 `from cloudmaster.mail_store import ...` 与测试不破；P3 删旧模块时统一改 import。
 
-注意：两个 DAL 各自持有同名的 MailStoreError（不同类，P3 删旧前过渡期允许重复）。
-此处只再导出 storage/inbox 的那个——来信侧缺 uid/重复 uid 的参数错误最先经它
-抛出；reports 侧缺 report_id 的报错在其自身模块内自洽。
+MailStoreError 单一类身份：reports 侧自 storage.inbox 导入同一类（P6 收口——
+过渡期两 DAL 各持同名异类会让 `pytest.raises(MailStoreError)` 接不住 reports 侧
+抛出），此处再导出的就是两侧共同抛出的那一个。
 
 P1 已落库（business.db）：进程重启不丢（旧版 ReportRegistry 为纯内存 dict）；
 发送记录仍只存交付元数据，**不落正文**。

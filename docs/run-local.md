@@ -166,7 +166,7 @@ cron / Windows 计划任务装配依赖后调用。示例（与 server.py 同款
 & .\.venv\Scripts\python.exe -c "from cloudmaster.storage.followups import FollowupQueue; from cloudmaster.jobs.followups import run_due; print(run_due(queue=FollowupQueue()))"
 
 # 保留期到期真删除（thread + 画像 + 保留期记录 + 报告台账；申诉台账不参与）
-& .\.venv\Scripts\python.exe -c "import os; from cloudmaster.model import create_llm, create_stub_llm; from cloudmaster.graph import build_graph; from cloudmaster.persistence import build_checkpointer; from cloudmaster.profile_store import ProfileStore; from cloudmaster.privacy import PrivacyStore; from cloudmaster.storage.reports import ReportStore; from cloudmaster.jobs.purge import run_purge; llm = create_stub_llm() if os.environ.get('CM_STUB') == '1' else create_llm(); print(run_purge(graph=build_graph(llm, checkpointer=build_checkpointer()), profiles=ProfileStore(), privacy=PrivacyStore(), reports=ReportStore()))"
+& .\.venv\Scripts\python.exe -c "import os; from cloudmaster.model import create_llm, create_stub_llm; from cloudmaster.graph import build_graph; from cloudmaster.persistence import build_checkpointer; from cloudmaster.profile_store import ProfileStore; from cloudmaster.privacy import PrivacyStore; from cloudmaster.storage.reports import ReportRegistry; from cloudmaster.jobs.purge import run_purge; llm = create_stub_llm() if os.environ.get('CM_STUB') == '1' else create_llm(); print(run_purge(graph=build_graph(llm, checkpointer=build_checkpointer()), profiles=ProfileStore(), privacy=PrivacyStore(), reports=ReportRegistry()))"
 ```
 
 两者重复执行无副作用；清除轮次经 `privacy.log_purge` 落一条 `purge_executed` 汇总审计。
