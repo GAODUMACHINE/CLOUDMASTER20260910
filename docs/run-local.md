@@ -1,6 +1,8 @@
 # CloudMaster 本地运行指南（视觉风格：云朵玻璃）
 
 > 目标：本机一键启动带真实 Qwen 的 FastAPI 服务，前端使用「云朵玻璃 /web/cloud-glass/」。
+> **公网部署（lightcloudmaster.top）见 [deploy/README.md](../deploy/README.md)**——
+> nginx + systemd + TLS + 每日定时任务一键装配；本文只覆盖本机运行。
 
 ## 1. 配置（密钥不入库）
 - 复制 `.env.example` 为 `.env`（已存在则直接编辑）。

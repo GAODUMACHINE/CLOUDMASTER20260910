@@ -7,6 +7,12 @@ dependencies = [
     "langgraph>=1.2",
     "langchain-core>=0.3",
     "langchain-openai>=0.2",
+    # v2.0.0 起为运行时硬依赖（web 层/服务进程/配置/检查点），不再留在 dev extra——
+    # 生产 `pip install -e .` 必须可直接部署（deploy/bootstrap.sh 依赖这一点）。
+    "fastapi>=0.110",
+    "uvicorn>=0.30",
+    "pydantic-settings>=2",
+    "langgraph-checkpoint-sqlite>=2",
 ]
 
 [project.optional-dependencies]
