@@ -40,12 +40,17 @@
   旧缓存 JS 提交的载荷不带 `email`，后端会 400。
 
 ## 3. 能力（与后端契约一致）
-- `POST /api/register`：年龄门（<14 强拒 / 未成年需监护人信号）、最小画像 + **每人唯一的随机匿名 ID**。
-- `POST /api/chat`：返回 reply + risk_level + next_agent + basis_reason；L2 中断转人工审核（不自动回复），
-  并返回 `escalation.ticket_id`（受理编号，前端危机横幅展示）。
-- `POST /api/chat/stream`：SSE 流式。
+> v2.0.0 起对话侧鉴权改 **Bearer 头**：`POST /api/chat` 与 `/api/chat/stream` 请求头
+> `Authorization: Bearer <匿名ID>`（缺失 401「缺少 Bearer 凭证（匿名 ID）」，body 只需 `{"text"}`）。
+> 其余用户侧端点（privacy/report/assessment/profile 等）仍走路径中的匿名 ID，契约不变。
+
+- `POST /api/register`：年龄门（<14 强拒 / 未成年需监护人信号）、最小画像 + **每人唯一的随机匿名 ID**；
+  v2.0.0 起协议签署同步留痕（agreements 表：版本 + 匿名键 + 时间，append-only）。
+- `POST /api/chat`：返回 reply + risk_level + next_agent + basis_reason + notices；L2 中断转人工审核
+  （不自动回复），并返回 `escalation.ticket_id`（受理编号，前端危机横幅展示）。
+- `POST /api/chat/stream`：**真 token SSE**（事件协议见 3.5）；挂起检查与 /api/chat 同源单点实现。
 - `DELETE /api/profile/{key}`：一键删除匿名画像与会话数据（幂等，不泄露标识是否存在）；同时清除保留期偏好。
-- `POST /api/appeal`：申诉与投诉举报受理，返回工单号（落 `data/private/appeals.jsonl`）。
+- `POST /api/appeal`：申诉与投诉举报受理，返回工单号（落 SQLite `appeals` 表，同事务写 received 事件）。
 - `GET /api/resources`：转介资源 + 申诉入口元数据 + `hotlines`（**默认空数组，不含任何未审核热线号码**）。
 
 ### 3.1 情绪自评（v1.2.0，非诊断）
@@ -56,9 +61,10 @@
 
 ### 3.2 隐私保留期与导出（v1.2.0）
 - `GET /api/privacy/{key}`：当前保留期（默认 30 天）+ 可选值 `[7,30,90]` + 到期删除时间。
-- `POST /api/privacy/{key}/retention` body `{"days":7|30|90}`：仅接受这三个值，其余返回 400。
+- `POST /api/privacy/{key}/retention` body `{"days":7|30|90}`：仅接受这三个值，其余返回 400；
+  变更写入 `audit_events`（kind=retention_changed）。导出/删除同样留审计（data_exported / data_deleted）。
 - `GET /api/privacy/{key}/export`：导出本人的最小画像与会话记录（只含匿名数据，无姓名/联系方式）。
-- 保留期偏好落 `data/private/privacy.json`（gitignored，不进画像白名单）。
+- 保留期偏好落统一 SQLite 库（见 §3.6），到期由 `jobs/purge.run_purge` 真删除（见 §3.7）。
 
 ### 3.3 人工审核台（v1.2.0，内部高危链路）
 审核台会返回会话上下文，属敏感数据，**默认不开放**：须在环境变量中配置令牌后启用。
@@ -70,15 +76,21 @@ $env:CM_REVIEWER_TOKEN = "<自定义审核台令牌>"
 
 | 接口 | 说明 |
 |---|---|
-| `GET /api/review/pending?token=` | 待审队列（只有判定依据与摘要，无对话原文） |
-| `GET /api/review/{ticket_id}?token=` | 单个案件 + 上下文（用于人工判断，不落盘） |
-| `POST /api/review/decision?token=` | 写回结论：`{"ticket_id","decision":"approve\|block","reviewer","contact_kind"}` |
+| `GET /api/review/pending` | 待审队列（只有判定依据与摘要，无对话原文）+ **回访待办 `followups`** |
+| `GET /api/review/{ticket_id}` | 单个案件 + 上下文（用于人工判断，不落盘） |
+| `POST /api/review/decision` | 写回结论：`{"ticket_id","decision":"approve\|block","reviewer","contact_kind"}` |
 
-- 未配置令牌或令牌不匹配一律 **403**（不区分「未开通」与「令牌错误」，避免泄露链路是否启用）。
+- **鉴权（v2.0.0）**：三个端点一律请求头 `Authorization: Bearer <CM_REVIEWER_TOKEN>`
+  （`secrets.compare_digest` 常数时间比对；令牌不进 URL / 访问日志）。
+  未配置令牌或令牌不匹配一律 **403**（不区分「未开通」与「令牌错误」，避免泄露链路是否启用）。
 - `decision=approve` → 审计留痕 + 联络动作（`contact_kind`：`guardian`/`emergency`/`school`/`none`）+ 次日温和回访；
   `decision=block` → 仅审计留痕、不发起联络。
-- 审核结论写回后**图自动恢复**（`update_state` → `invoke(None)`），由既有 `human_review` 节点消费。
-- 台账落 `data/private/reviews.jsonl`（append-only、gitignored），**绝不落对话原文**。
+- 裁决分两支：**chat 工单**审核结论写回后**图自动恢复**（`update_state` → `invoke(None)`）；
+  **assessment 工单**（`source=assessment`）不经过图，服务层直接构造同形审计/联络/回访——
+  修掉了旧版自评 urgent 工单裁决必 409 的死环。
+- 回访计划落 `followups` 队列（pending → done=已交付待办区；回访触达本身是线下人工动作），
+  值班页「回访待办」区渲染近 7 日已交付项（匿名键只显前 8 字符）。
+- 台账落 SQLite `review_cases` 表（append-only 语义 + 决策不可覆写约束），**绝不落对话原文**。
 - **值班网页（v1.4.0）**：<http://127.0.0.1:8000/web/review/> —— 令牌在页面内输入，只存 `sessionStorage`
   （不进 URL / 不进 localStorage）；待审队列 → 判定依据 + 上下文 → approve/block + 联络对象 → 结果回显。
   服务端未配 `CM_REVIEWER_TOKEN` 时页面一律拒绝访问。
@@ -103,19 +115,61 @@ $env:IMAP_USER="<系统收件邮箱>"; $env:IMAP_PASSWORD="<IMAP 授权码>"
 
 | 接口 | 说明 |
 |---|---|
-| `GET /api/report/{key}` | 生成报告**草稿**（不发送），返回 `confirm_token` |
+| `GET /api/report/{key}` | 生成报告**草稿**（不发送，落库），返回 `confirm_token` |
 | `POST /api/report/send` | 前端二次确认后发送：`{"report_id","confirm_token","decision":"approve"}` |
-| `GET /api/report/status/{key}` | 投递邮箱、通道是否就绪、已发送记录 |
+| `GET /api/report/status/{key}` | 投递邮箱、通道是否就绪、已发送记录（**v2.0.0 起只返回本人的**） |
 | `POST /api/report/unsubscribe/{key}` | 退订报告（`report_opt_in=False`）；`/resubscribe` 重新开启 |
-| `POST /api/inbox/poll?token=` | 拉取新来信（回信/退信/退订）并入库；须审核台令牌 |
-| `GET /api/inbox?token=` | 来信台账（只读摘要） |
+| `POST /api/inbox/poll` | 拉取新来信（回信/退信/退订）并入库；须审核台 Bearer 令牌 |
+| `GET /api/inbox` | 来信台账（只读摘要）；同上鉴权 |
 
 - **发送是产品级 HITL**：报告只含会话**聚合信息与建议，不含对话原文**；用户先看预览、再点确认才发送。
 - 确认令牌绑定「匿名标识 + 报告编号」，服务端用 `compare_digest` 比对；同一报告**不可重复投递**（409）。
-- 收信只读 `text/plain` 并**跳过附件**，正文截断 2000 字后落 `data/private/inbox.jsonl`（gitignored）。
+- 草稿/发送台账自 v2.0.0 起落 SQLite（`report_drafts`/`report_sents`，进程重启不丢；
+  `POST /api/email/confirm` 已删除——旧开放中继隐患）。
+- 收信只读 `text/plain` 并**跳过附件**，正文截断 2000 字后落 SQLite `inbox_messages` 表。
 - 来信分类：`reply`（主题含 `[RP-xxxx]`/`[HR-xxxx]` 即归属到报告/工单）、`bounce`（退信）、`auto`（自动回复）、`other`。
 - 邮件正文含 `STOP`/`退订` 等 → 自动把对应用户的 `report_opt_in` 置 False（按发件地址回查匿名标识）。
 - AI 内容标识 + 匿名隐私 + prefers-reduced-motion 全部内置。
+
+### 3.5 SSE 流式事件协议（v2.0.0，真 token 流）
+
+`POST /api/chat/stream`（Bearer 同 /api/chat）按序发四类事件（`data: {"type": ...}\n\n`）：
+
+| type | 含义 |
+|---|---|
+| `token` | 模型增量 token（仅共情/科普节点在白名单内；危机复核材料**绝不外发**） |
+| `reply` | 整段回复（非流式降级时只发这一条） |
+| `held` | L2 挂起：安全提示占位文案 + ticket_id，无动画 |
+| `done` | 终态：`risk_level` + `basis_reason` + `notices`（时长守护气泡） |
+
+挂起检查**前置**（流式开始前判定），L2 无法经 stream 端点绕过人工审核。
+
+### 3.6 数据落盘（v2.0.0 统一 SQLite 底座，ADR-012）
+
+业务台账不再散落 JSONL，统一进 SQLite（WAL；缺省 `data/private/business.db`，gitignored）：
+profiles / privacy / review_cases / appeals(+appeal_events) / resources / agreements /
+report_drafts+report_sents / inbox_messages / followups / audit_events（append-only 触发器兜底）。
+
+路径收口链（`storage/db.resolve_db_path`）：显式参数 → 各店专属环境变量 → `BUSINESS_DB_PATH`
+→ `data/private/business.db`。专属变量按店命名：`PROFILE_DB_PATH` / `PRIVACY_DB_PATH` /
+`REVIEW_DB_PATH` / `APPEAL_DB_PATH` / `RESOURCE_DB_PATH` / `AGREEMENT_DB_PATH` /
+`REPORT_DB_PATH` / `INBOX_DB_PATH` / `FOLLOWUP_DB_PATH`（一般无需设置）。
+旧 JSON 生产数据迁移走 `scripts/migrate_json_to_sqlite.py`（dry-run 对账 + 幂等）。
+
+### 3.7 定时任务（v2.0.0 jobs/，外部调度触发，零新增依赖）
+
+系统**不内置**调度线程；`jobs/` 提供幂等纯函数入口（`run_purge` / `run_due`），由运维
+cron / Windows 计划任务装配依赖后调用。示例（与 server.py 同款装配链）：
+
+```powershell
+# 次日回访到期交付（pending → done，进审核台待办区）
+& .\.venv\Scripts\python.exe -c "from cloudmaster.storage.followups import FollowupQueue; from cloudmaster.jobs.followups import run_due; print(run_due(queue=FollowupQueue()))"
+
+# 保留期到期真删除（thread + 画像 + 保留期记录 + 报告台账；申诉台账不参与）
+& .\.venv\Scripts\python.exe -c "import os; from cloudmaster.model import create_llm, create_stub_llm; from cloudmaster.graph import build_graph; from cloudmaster.persistence import build_checkpointer; from cloudmaster.profile_store import ProfileStore; from cloudmaster.privacy import PrivacyStore; from cloudmaster.storage.reports import ReportStore; from cloudmaster.jobs.purge import run_purge; llm = create_stub_llm() if os.environ.get('CM_STUB') == '1' else create_llm(); print(run_purge(graph=build_graph(llm, checkpointer=build_checkpointer()), profiles=ProfileStore(), privacy=PrivacyStore(), reports=ReportStore()))"
+```
+
+两者重复执行无副作用；清除轮次经 `privacy.log_purge` 落一条 `purge_executed` 汇总审计。
 
 ## 4. 测试 / 安全回归（禁止触网）
 - 测试一律注入 fake LLM：`.\.venv\Scripts\python.exe -m pytest`（默认跳过 eval）、`pytest -m safety`、`pytest -m eval`。

@@ -295,3 +295,53 @@
 | 第 21 条 | 申诉与投诉举报入口 | TC-PRIV-006、TC-RES-002 |
 | 第 22、23 条 | 上线前安全评估并报告 | 第 9.2 节门禁 #11 + 评估报告归档 docs/eval |
 | 第 26 条 | 算法备案 | 运营合规核查项（非测试用例，v1.0.0 前核查适用范围） |
+
+---
+
+## 附录 C v2.0.0 重写差距回写（2026-10-02）
+
+> 本附录是对第 4~7 章用例目录的**实现侧**差距核对：哪些此前缺失/失真的能力在 v2.0.0
+> 重写（P0~P8，ADR-011/012）后已具备实现支撑，哪些仍是已知缺口。
+> **验证状态如实声明：按用户指令（本项目先重构、不写测试样例），v2.0.0 全程未执行
+> pytest / safety 门禁**——下表「已实现」指代码落地 + 静态核验（ruff / 导入冒烟 / 路由表
+> 对齐），不等价于「已验证」；合并前须补跑全量回归（PR-v2.0.0 待办 #1）。
+
+### C.1 本轮补齐的实现支撑（原缺口 → 落点）
+
+| 原缺口 | 用例 | v2.0.0 落点 |
+|---|---|---|
+| SSE 为伪流式（整段伪装成流） | TC-CHAT-001 / TC-PERF-001 | P3 `web/sse.py`：stream_mode="messages" 真 token 流式 + 节点白名单 + stub 自动降级；`model.create_llm` streaming=True |
+| stream 端点无挂起检查（L2 可绕过人工审核） | TC-CRI-003~008 / TC-HITL-001 | P3 挂起检查前置 + 与 /api/chat 共用 web/deps 单点实现 |
+| 自评 urgent 工单裁决 409 死环（永远无法闭环） | TC-SCALE-002 / TC-HITL-004 | P4 review_cases.source 列 + 裁决双分支（assessment 源不碰图，服务层构造同形审计/联络/回访） |
+| 协议签署无留痕记录 | TC-REG-007 | P4 storage/agreements（append-only，版本+时间+匿名键） |
+| report/status 返回全量发送记录（跨用户泄漏） | TC-SCALE-003（越权可见同类） | P3/P4 sent_records(profile_key) 按本人过滤 |
+| 报告草稿/发送台账进程重启即丢 | TC-REPORT-001~003 | P1/P4 storage/reports 落 SQLite（business.db） |
+| 保留期到期假删除（只算时间从不执行） | TC-PRIV-001「到期数据按期清理」 | P7 jobs/purge.run_purge 四件套删除 + purge_executed 审计 |
+| 次日回访只落图 state（重启即丢、不可见） | TC-HITL-007 | P7 storage/followups 队列 + jobs/followups.run_due + 审核台回访待办区 |
+| 申诉只有提交无处置轨迹 | TC-PRIV-006「提交流程闭环」 | P4 appeal_events（received 同事务落库 + add_event/events/list_open 运维通道） |
+| 行权动作无审计（改保留期/导出/删除） | TC-SEC-002 / TC-PRIV-004 | P4 audit_events 统一记录（retention_changed / data_exported / data_deleted / purge_executed，append-only 触发器兜底） |
+| 前端承诺「随时可退订」但无退订按钮 | TC-REPORT 系 | P5 reportOptBtn/reportOptMsg（unsubscribe/resubscribe + status 初值） |
+| 审核令牌经 query 传输（进 URL/访问日志） | TC-COMP-007 | P3/P5 改 Authorization: Bearer 头 |
+| 邮件确认令牌非常数时间比较 | —（安全加固） | P6 send_if_confirmed 改 secrets.compare_digest |
+| /api/email/confirm 开放中继隐患 | —（安全加固） | P3 端点删除（处置表 #12，连带 3 用例） |
+| agent_hops 跨轮累计致第 4 轮起无回复 / 跨天误触收尾 | TC-CHAT / TC-TG-007 | P2 time_guard 修复（fired 拆分 + 当日语义 + 轮生命周期锚点，已验证） |
+
+### C.2 已知仍缺口（如实声明，未随本轮关闭）
+
+| 缺口 | 用例 | 说明 |
+|---|---|---|
+| 会话/消息静态加密存储 | TC-SEC-001 | SQLite 明文落盘（data/private/ 目录级隔离 + gitignore）；静态加密需密钥管理设计，未排期 |
+| 监护人使用概况查询 | TC-PRIV-005 | 无对监护人开放的任何查询通道（当前唯一消费方是审核台，须令牌）；「仅返回使用概况不含原文」的接口未实现 |
+| 首个 token 延迟实测 | TC-PERF-001 | 真 token SSE 已实现，但 P95 实测须在线评估（scripts/online_eval 手动跑，本轮未跑） |
+| 回访的「执行」 | TC-HITL-007 | 系统只交付可见性（待办区），回访话术/触达为线下人工动作（ADR-003 温和不打扰，有意为之） |
+| 热线卡片一键复制/拨打 | TC-HITL-002 | 危机挂起文案引导拨打当地急救电话，不含号码卡片（未审核热线一律不下发红线，号码库为空） |
+| 高危语料集 ≥200 条批量回归 | TC-CRI-008 | 语料集建设与批量执行未排期；现有 safety 集为抽样级 |
+| 审核人鉴权与角色分级 | TC-HITL-003~006 | 审核人仍是自填标识 + 单一共享令牌（ADR-010 待办） |
+
+### C.3 用例与实现的状态口径
+
+- 第 4~7 章用例目录的**通过准则不变**；v2.0.0 改变的是实现支撑面（C.1）。
+- 既有 pytest 集（集成/安全 246 例）随 P3 契约同步修改（Bearer 化 4 文件、删 3 例），
+  预期合并前回归为 **243 passed + 2 deselected / safety 34**——未执行，以实际跑数为准。
+- 门禁检查表（9.2）各复选框维持 ☐ 未勾选状态：门禁执行属合并前动作，不在重构范围内。
+
