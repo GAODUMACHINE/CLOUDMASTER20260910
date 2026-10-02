@@ -30,12 +30,16 @@ fi
 
 step "1/8 系统依赖"
 apt-get update -qq
-apt-get install -y -qq python3-venv nginx certbot >/dev/null
+# git：24.04 最小镜像可能不带；离线上传（无 .git）模式同样只需它缺席即可
+apt-get install -y -qq git python3-venv nginx certbot >/dev/null
 
 step "2/8 代码（$BRANCH）"
 if [ -d "$APP_DIR/.git" ]; then
   git -C "$APP_DIR" fetch --quiet && git -C "$APP_DIR" checkout --quiet "$BRANCH"
   git -C "$APP_DIR" pull --ff-only --quiet
+elif [ -f "$APP_DIR/pyproject.toml" ]; then
+  # 离线上传模式：GitHub 大陆直连常超时，可本地打包 scp 到 $APP_DIR 后再跑本脚本
+  echo "$APP_DIR 已含代码（无 .git），按离线上传处理，跳过 clone/pull"
 else
   git clone --quiet --branch "$BRANCH" "$REPO_URL" "$APP_DIR"
 fi
@@ -103,7 +107,9 @@ cat > /etc/systemd/system/cloudmaster-jobs.timer <<UNIT
 Description=Run CloudMaster daily jobs
 
 [Timer]
-OnCalendar=*-*-* 09:17:00
+# 显式北京时间：境外服务器（如新加坡，TZ=UTC）不受系统时区影响，
+# 「次日回访上午交付」语义恒定（systemd ≥235 支持日历表达式带时区后缀）
+OnCalendar=*-*-* 09:17:00 Asia/Shanghai
 Persistent=true
 
 [Install]

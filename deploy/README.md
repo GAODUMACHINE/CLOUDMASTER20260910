@@ -1,6 +1,9 @@
 # CloudMaster 部署指南（lightcloudmaster.top）
 
-> 目标：把本仓库部署到一台 Linux 服务器，以 `https://www.lightcloudmaster.top` 对外提供服务。
+> **手把手走查（首次部署看这篇）：[攻略-ubuntu24.md](攻略-ubuntu24.md)**——
+> 按实际环境（Ubuntu 24.04 / 新加坡节点 / 大陆访问）写的线性清单，含踩坑排查表。
+> 本文件是参考手册；目标：把本仓库部署到一台 Linux 服务器，以
+> `https://www.lightcloudmaster.top` 对外提供服务。
 > 组件：nginx（TLS + SSE 反代）→ uvicorn（127.0.0.1:8000）→ SQLite（data/private/）。
 > 全部资产在 `deploy/`：`bootstrap.sh`（一键装配）、`update.sh`（例行更新）、
 > `nginx-cloudmaster.conf`（站点配置）。
