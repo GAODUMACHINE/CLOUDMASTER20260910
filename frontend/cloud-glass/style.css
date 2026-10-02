@@ -9,25 +9,26 @@
    3) 衬线仅用于品牌与标题（Georgia/宋体混排），正文克制、行高放松。
    ========================================================================== */
 
+/* 公共令牌见 common/tokens.css（v2.0.0 P5 统一配色）；本页 :root 只做别名映射，
+   让既有规则零改动地引用同一套取值——改色只改 tokens.css 一处。 */
 :root{
   /* 天空（低饱和晨雾） */
-  --sky-hi:#F6F9FB; --sky-mid:#EDF3F7; --sky-low:#DEE8EF;
+  --sky-hi:var(--cm-bg-hi); --sky-mid:var(--cm-bg-mid); --sky-low:var(--cm-bg-low);
   /* 玻璃与纸 */
-  --glass:rgba(255,255,255,.6);
-  --paper:rgba(255,255,255,.7);
-  --edge-light:rgba(255,255,255,.85);
-  --hairline:rgba(34,56,74,.15);
+  --glass:var(--cm-glass);
+  --paper:var(--cm-paper);
+  --edge-light:var(--cm-edge-light);
+  --hairline:var(--cm-hairline);
   /* 墨色文字（对纸底均 ≥ AA） */
-  --ink:#22384A; --ink-2:#2F4B62; --muted:#46617A; --faint:#57718A;
+  --ink:var(--cm-ink); --ink-2:var(--cm-ink-2); --muted:var(--cm-muted); --faint:var(--cm-faint);
   /* 单一强调：墨蓝 */
-  --accent:#2E5A7E; --accent-deep:#264D6D; --user-bubble:#38678C;
-  --ring:rgba(46,90,126,.18);
+  --accent:var(--cm-primary); --accent-deep:var(--cm-primary-deep); --user-bubble:var(--cm-bubble-user);
+  --ring:var(--cm-ring);
   /* 状态色（去饱和） */
-  --good:#3E7A5E; --danger:#8F442F; --warm-line:#B4663F;
-  /* 形状与间距 */
-  --r-lg:14px; --r-md:10px; --r-sm:8px;
-  --serif:Georgia,"Times New Roman","Noto Serif SC","Source Han Serif SC","Songti SC","SimSun",serif;
-  --sans:"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Segoe UI",system-ui,sans-serif;
+  --good:var(--cm-good); --danger:var(--cm-danger); --warm-line:var(--cm-warm);
+  /* 形状与间距（三档圆角即公共三档；无页面私有间距体系） */
+  --r-lg:var(--cm-radius-lg); --r-md:var(--cm-radius-md); --r-sm:var(--cm-radius-sm);
+  --serif:var(--cm-serif); --sans:var(--cm-sans);
 }
 
 *{box-sizing:border-box}
@@ -127,7 +128,7 @@ h2{
 /* ---- 按钮：小而实色，无戏法 ---- */
 .primary{
   height:42px; width:100%; padding:0 20px; border:0; border-radius:var(--r-sm); cursor:pointer;
-  font-size:14.5px; font-weight:600; color:#F5F9FC; background:var(--accent);
+  font-size:14.5px; font-weight:600; color:var(--cm-on-primary); background:var(--accent);
   box-shadow:0 1px 2px rgba(34,56,74,.22);
   transition:background-color .2s;
 }
@@ -143,6 +144,18 @@ h2{
 }
 .linklike:hover{text-decoration:underline; text-underline-offset:3px}
 .linklike:focus-visible{outline:2px solid var(--accent-deep); outline-offset:2px; border-radius:2px}
+
+/* 幽灵钮（报告预览/退订开关等次级动作）：白瓷面 + 发丝描边，与 danger 同族但中性 */
+.ghost{
+  height:38px; padding:0 16px; border-radius:var(--r-sm); cursor:pointer;
+  font-size:13px; font-weight:600; color:var(--ink-2); font-family:inherit;
+  background:rgba(255,255,255,.55); border:1px solid rgba(34,56,74,.22);
+  transition:background-color .2s, border-color .2s;
+}
+.ghost:not(:disabled):hover{background:rgba(255,255,255,.85); border-color:rgba(34,56,74,.34)}
+.ghost:disabled{opacity:.45; cursor:not-allowed}
+.ghost:focus-visible{outline:2px solid var(--accent-deep); outline-offset:2px}
+.ghost.compact{width:auto}
 
 .danger{
   height:38px; padding:0 16px; border-radius:var(--r-sm); cursor:pointer;
@@ -167,12 +180,18 @@ h2{
   box-shadow:0 1px 2px rgba(34,56,74,.05);
 }
 .bubble.user{
-  align-self:flex-end; color:#F5F9FC; background:var(--user-bubble);
+  align-self:flex-end; color:var(--cm-on-primary); background:var(--user-bubble);
   border-bottom-right-radius:4px; margin-left:14%;
 }
 .bubble.ai{
   align-self:flex-start; color:var(--ink); background:rgba(255,255,255,.82);
   border:1px solid var(--hairline); border-bottom-left-radius:4px; margin-right:14%;
+}
+/* 系统通知气泡（v2.0.0 P5 终态 notices）：整条通栏的安静提示，弱于危机横幅 */
+.bubble.ai.notice{
+  align-self:stretch; max-width:none; margin-right:0;
+  background:rgba(46,90,126,.06); border:1px dashed rgba(46,90,126,.35);
+  color:var(--ink-2); font-size:13px; border-radius:var(--r-md);
 }
 .typing{
   flex:none; color:var(--muted); font-size:12px; min-height:20px; padding:2px 18px 4px;
@@ -200,7 +219,7 @@ h2{
 .input-row input:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--ring)}
 .send{
   flex:none; width:42px; height:42px; border:0; border-radius:var(--r-md); cursor:pointer;
-  background:var(--accent); color:#F5F9FC;
+  background:var(--accent); color:var(--cm-on-primary);
   display:flex; align-items:center; justify-content:center;
   transition:background-color .2s;
 }

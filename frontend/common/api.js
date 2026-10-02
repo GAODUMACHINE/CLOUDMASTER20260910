@@ -1,11 +1,12 @@
 /* CloudMaster 前端共享逻辑
    - 年龄门(<14 强拒 / 未成年需监护人信号)
-   - chat 调用 /api/chat（返回 reply + risk_level + next_agent + escalation，驱动危机横幅）
-   - 打字机流式观感（prefers-reduced-motion 时直接显示）
+   - chat 走 POST /api/chat/stream（SSE 真流式：token 逐段 / reply 整段 / held 挂起 / done 终态+notices），
+     鉴权 Bearer 头携带匿名标识、body 只传 text；流式不可用时降级旧 POST /api/chat（打字机模拟）
    - 危机(L2)→人工审核横幅（不放任何真实热线号码；高风险时展示受理编号）
    - AI 内容标识 + 匿名隐私说明
    - 情绪自评（只回区间与建议动作，绝不展示分数/诊断）
    - 隐私保留期（7/30/90 天）与一键本地导出
+   - 疏导报告退订开关（GET status 初始化 / POST unsubscribe·resubscribe 切换）
    - 转介资源 + 已人工审核热线条目（默认空；号码仅在审核后下发）
    合规红线：不索要真名/照片/联系方式，不展示真实热线；动效支持 reduce-motion。 */
 (function () {
@@ -13,7 +14,7 @@
   var BASE = (window.CM_API_BASE || '').replace(/\/+$/, '');
   var KEY = 'cm_profile_key';
   var MINOR_KEY = 'cm_is_minor';
-  var state = { key: null, risk: 'none', ticket: null };
+  var state = { key: null, risk: 'none', ticket: null, reportOptIn: true };
   var resourcesReq = null; // 共享 /api/resources 请求，避免重复拉取
 
   function $(id) { return document.getElementById(id); }
@@ -97,6 +98,7 @@
     if (on) {
       $('chatPanel').classList.add('hidden');
       $('registerPanel').classList.add('hidden');
+      refreshReportOpt(); // 面板打开时同步退订状态（邮件 STOP 回执也可能已改画像）
     } else {
       showPanel(state.key ? 'chat' : 'register');
     }
@@ -146,6 +148,7 @@
         setMinorFlag(n < 18);
         setupPrivacy();
         setupReport();
+        refreshReportOpt(); // 注册成功即初始化退订开关（默认开启）
         showPanel('chat');
         addMsg('你好，我是 CloudMaster 陪伴助手。感觉怎么样？','ai');
         notify('');
@@ -155,9 +158,170 @@
     refresh();
   }
 
-  /* ---- chat ---- */
+  /* ---- SSE 消费（v2.0.0 P5）：fetch + ReadableStream 逐帧读取 ----
+     协议：事件以空行（\n\n）分隔，每帧取 'data: ' 前缀行拼装后 JSON.parse；
+     缓冲区保留不完整尾部等下一帧；无 ReadableStream 的环境退回 r.text() 整段解析。 */
+  function consumeSse(resp, onEvent) {
+    function emit(raw) {
+      var data = [];
+      String(raw).split('\n').forEach(function (line) {
+        if (line.slice(0, 6) === 'data: ') { data.push(line.slice(6)); }
+      });
+      if (!data.length) { return; }
+      var ev = null;
+      try { ev = JSON.parse(data.join('\n')); } catch (e2) { return; } // 单帧损坏只丢该帧，不断流
+      onEvent(ev);
+    }
+    if (!resp.body || !resp.body.getReader) {
+      return resp.text().then(function (all) {
+        String(all).split('\n\n').forEach(function (p) { if (p) { emit(p); } });
+      });
+    }
+    var reader = resp.body.getReader();
+    var dec = new TextDecoder();
+    var buf = '';
+    function pump() {
+      return reader.read().then(function (out) {
+        if (out.done) {
+          if (buf) { emit(buf); buf = ''; }
+          return;
+        }
+        buf += dec.decode(out.value, { stream: true }); // stream:true 处理跨块的多字节字符
+        var idx = buf.indexOf('\n\n');
+        while (idx !== -1) {
+          emit(buf.slice(0, idx));
+          buf = buf.slice(idx + 2);
+          idx = buf.indexOf('\n\n');
+        }
+        return pump();
+      });
+    }
+    return pump();
+  }
+
+  /* ---- chat（v2.0.0 P5）：SSE 真流式优先，失败降级旧非流式（打字机模拟） ----
+     鉴权：Authorization: Bearer <profile_key>，body 只传 {"text"}（新契约）。
+     事件：token 逐段追加（真打字机；reduce-motion 聚齐后一次呈现）；reply=stub 降级单事件
+     整段呈现；held=L2 挂起（整段、无逐字动画，受理编号进横幅）；done=终态
+     （risk/ticket/危机横幅/notices 逐条系统气泡）。降级只发生在「一个事件都没收到」时，
+     避免中途断流后整轮重发给后端重复入账。 */
   function setupChat() {
     var input = $('input'), send = $('sendBtn');
+    function chatHeaders() {
+      return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.key };
+    }
+    function scrollChat() {
+      var m = $('chatMessages');
+      m.scrollTop = m.scrollHeight;
+    }
+    function settleDone(ev) {
+      // 终态统一收口：风险分级 / 受理编号 / 危机横幅 / 系统通知气泡。
+      state.risk = ev.risk_level || 'none';
+      state.ticket = (ev.escalation && ev.escalation.ticket_id) ? ev.escalation.ticket_id : null;
+      updateCrisis(ev.escalation);
+      if (ev.notices && ev.notices.length) {
+        ev.notices.forEach(function (n) { addMsg((n && n.text) || '', 'ai notice'); });
+      }
+    }
+    function legacyChat(text, bubble) {
+      // 降级路径：保留 v1.x 非流式语义（本地打字机模拟），接口同样走 Bearer 新契约。
+      return fetch(BASE + '/api/chat', { method: 'POST', headers: chatHeaders(),
+        body: JSON.stringify({ text: text }) }).
+      then(function (r) {
+        return r.json().then(function (j) { return { ok: r.ok, status: r.status, j: j }; },
+          function () { return { ok: r.ok, status: r.status, j: {} }; });
+      }).
+      then(function (res) {
+        bubble.className = 'bubble ai';
+        if (!res.ok) {
+          bubble.textContent = res.status === 401
+            ? '会话凭证缺失或已失效，请重新完成年龄注册。'
+            : toText((res.j && (res.j.detail || res.j.message)) || '（服务暂不可用，请稍后再试）');
+          setTyping(false);
+          return;
+        }
+        var j = res.j || {};
+        state.risk = j.risk_level || 'none';
+        // 高风险时后端会登记审核台并回传受理编号；仅用于横幅展示，不做任何跳转。
+        state.ticket = (j.escalation && j.escalation.ticket_id) ? j.escalation.ticket_id : null;
+        updateCrisis(j.escalation);
+        if (j.held_for_review) {
+          // 挂起态（L2 待人工审核）：自动回复已暂停，安全提示立即整段呈现，不做逐字动画。
+          bubble.textContent = j.reply || '';
+          setTyping(false);
+        } else {
+          typewriter(bubble, j.reply || '', function () { setTyping(false); });
+        }
+      }).
+      catch(function () { bubble.textContent = toText('（连接失败，请确认后端已启动）'); setTyping(false); });
+    }
+    function streamChat(text, bubble) {
+      var acc = '';       // token 事件累计出的完整文本
+      var got = false;    // 是否已消费到任一事件（决定能否安全降级）
+      var shown = false;  // 气泡是否已呈现最终文本
+      var seenDone = false, seenHeld = false;
+      function paint(full) {
+        shown = true;
+        bubble.textContent = full;
+        scrollChat();
+      }
+      return fetch(BASE + '/api/chat/stream', { method: 'POST', headers: chatHeaders(),
+        body: JSON.stringify({ text: text }) }).
+      then(function (r) {
+        if (r.status === 401) {
+          var e = new Error('会话凭证缺失或已失效，请重新完成年龄注册。');
+          e.fatal = true; // 401 属凭证问题，换接口重试无意义，直接告知
+          throw e;
+        }
+        if (!r.ok) { throw new Error('流式接口不可用'); }
+        return consumeSse(r, function (ev) {
+          if (!ev || !ev.type) { return; }
+          if (!got) { bubble.className = 'bubble ai'; }
+          got = true;
+          if (ev.type === 'token') {
+            acc += (ev.text || '');
+            // 真打字机：按服务端节奏逐段追加；reduce-motion 时聚齐后由 reply/done 一次性呈现。
+            if (!prefersReduced() && !shown) { bubble.textContent = acc; scrollChat(); }
+          } else if (ev.type === 'reply') {
+            paint(ev.text || acc); // stub 降级单事件：整段呈现，不做逐字动画
+          } else if (ev.type === 'held') {
+            seenHeld = true;
+            paint(ev.reply || ''); // L2 挂起：整段呈现，无逐字动画
+            if (ev.escalation && ev.escalation.ticket_id) { state.ticket = ev.escalation.ticket_id; }
+          } else if (ev.type === 'done') {
+            seenDone = true;
+            if (!shown) { paint(ev.reply || acc); } // 流式 token 未到（如直出终态）时兜底
+            settleDone(ev);
+          }
+        });
+      }).
+      then(function () {
+        bubble.className = 'bubble ai';
+        setTyping(false);
+        if (!seenDone) {
+          // 流提前结束且无终态：用已收内容尽力收尾；held 态按高风险补横幅（横幅不可静默丢失）。
+          if (!shown && acc) { paint(acc); }
+          if (seenHeld) { state.risk = 'high'; }
+          updateCrisis();
+        }
+      }).
+      catch(function (err) {
+        if (err && err.fatal) {
+          bubble.className = 'bubble ai';
+          bubble.textContent = err.message;
+          setTyping(false);
+          return;
+        }
+        if (got) {
+          // 中途断流：不整轮重发（后端已入账），保留已到内容并如实提示。
+          bubble.className = 'bubble ai';
+          if (!shown) { bubble.textContent = acc || '（回复中断，请稍后重试）'; }
+          setTyping(false);
+          return;
+        }
+        throw err; // 未收到任何事件：交给上层降级到旧非流式路径
+      });
+    }
     function go() {
       var text = input.value.trim();
       if (!text) return;
@@ -168,25 +332,8 @@
       addMsg(text, 'user');
       var bubble = el('div', 'bubble ai typing');
       $('chatMessages').appendChild(bubble);
-      fetch(BASE + '/api/chat', { method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ profile_key: state.key, text: text }) }).
-      then(function (r) { return r.json(); }).
-      then(function (j) {
-        bubble.className = 'bubble ai';
-        state.risk = j.risk_level || 'none';
-        if (j.held_for_review) {
-          // 挂起态（L2 待人工审核）：自动回复已暂停，安全提示立即整段呈现，不做逐字动画。
-          bubble.textContent = j.reply || '';
-          setTyping(false);
-        } else {
-          typewriter(bubble, j.reply || '', function () { setTyping(false); });
-        }
-        // 高风险时后端会登记审核台并回传受理编号；仅用于横幅展示，不做任何跳转。
-        state.ticket = (j.escalation && j.escalation.ticket_id) ? j.escalation.ticket_id : null;
-        updateCrisis();
-      }).
-      catch(function () { bubble.textContent = toText('（连接失败，请确认后端已启动）'); setTyping(false); }).
+      streamChat(text, bubble).
+      catch(function () { return legacyChat(text, bubble); }).
       finally(function () { send.disabled = false; });
     }
     send.addEventListener('click', go);
@@ -498,9 +645,11 @@
         state.key = null;
         state.risk = 'none';
         state.ticket = null;
+        state.reportOptIn = true; // 画像已删，回到「未注册」默认态
         $('chatMessages').innerHTML = '';
         setMinorFlag(false);
         updateCrisis();
+        refreshReportOpt();
         msg.textContent = '已删除，你已退出。';
         showSettings(false);
       }).
@@ -586,6 +735,67 @@
     });
   }
 
+  /* ---- 报告退订开关（v2.0.0 P5）：设置页疏导报告 block 的显式退订/再开启 ----
+     此前文案承诺「随时可退订」但界面上没有开关（功能对照表「已知缺口」）；现补齐：
+     GET /api/report/status/{key} 初始化，POST unsubscribe/resubscribe 切换；
+     未注册（无 key）时按钮禁用。开关只影响投递，不删除任何已存数据。 */
+  function setReportOpt(optIn) {
+    var btn = $('reportOptBtn'), msg = $('reportOptMsg');
+    if (btn) { btn.textContent = optIn ? '退订报告' : '重新开启报告'; }
+    if (msg) { msg.textContent = optIn ? '报告默认开启，可随时退订。' : '已退订：报告将不再发送。'; }
+  }
+  function refreshReportOpt() {
+    var btn = $('reportOptBtn'), msg = $('reportOptMsg');
+    if (!btn) { return; }
+    if (!state.key) {
+      btn.disabled = true;
+      setReportOpt(true);
+      if (msg) { msg.textContent = '完成年龄注册后可管理报告投递。'; }
+      return;
+    }
+    btn.disabled = true; // 读取期间禁用，避免基于旧状态连点
+    fetch(BASE + '/api/report/status/' + encodeURIComponent(state.key)).
+    then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); }).
+    then(function (res) {
+      if (!res.ok) {
+        if (msg) { msg.textContent = toText((res.j && (res.j.detail || res.j.message)) || '暂无法读取订阅状态。'); }
+        return;
+      }
+      state.reportOptIn = !!(res.j && res.j.opt_in);
+      setReportOpt(state.reportOptIn);
+    }).
+    catch(function () { if (msg) { msg.textContent = '无法连接后端，请确认服务已启动。'; } }).
+    finally(function () { btn.disabled = false; });
+  }
+  function setupReportOpt() {
+    var btn = $('reportOptBtn');
+    if (!btn) { return; }
+    var busy = false;
+    btn.addEventListener('click', function () {
+      if (!state.key || busy) { return; }
+      var unsub = state.reportOptIn !== false; // 画像默认 opt_in；未读到状态前按开启处理
+      busy = true;
+      btn.disabled = true;
+      var path = unsub ? '/api/report/unsubscribe/' : '/api/report/resubscribe/';
+      fetch(BASE + path + encodeURIComponent(state.key), { method: 'POST' }).
+      then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); }).
+      then(function (res) {
+        if (!res.ok || !res.j || res.j.ok !== true) {
+          var msg = $('reportOptMsg');
+          if (msg) { msg.textContent = toText((res.j && (res.j.detail || res.j.message)) || '操作未完成，请稍后重试。'); }
+          return;
+        }
+        state.reportOptIn = !!res.j.opt_in;
+        setReportOpt(state.reportOptIn);
+      }).
+      catch(function () {
+        var msg2 = $('reportOptMsg');
+        if (msg2) { msg2.textContent = '无法连接后端，请确认服务已启动。'; }
+      }).
+      finally(function () { busy = false; btn.disabled = !state.key; });
+    });
+  }
+
   function init() {
     try { state.key = localStorage.getItem(KEY); } catch (e) {}
     if (state.key) {
@@ -596,6 +806,7 @@
       addMsg('欢迎回来，我可以继续陪你聊聊。','ai');
     } else {
       showPanel('register');
+      refreshReportOpt(); // 未注册开机即禁用退订开关（无网络请求）；注册成功后面板打开时再刷新
     }
     setupRegister();
     setupChat();
@@ -605,6 +816,7 @@
     setupAssessment();
     setupPrivacy();
     setupReport();
+    setupReportOpt();
     setupHotlines();
   }
   if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); }

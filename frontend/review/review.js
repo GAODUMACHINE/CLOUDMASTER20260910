@@ -1,7 +1,10 @@
 /* CloudMaster 人工审核台（值班前端）
-   接口：GET /api/review/pending · GET /api/review/{ticket} · POST /api/review/decision（均带 token）
-   安全：令牌只放 sessionStorage（不进 URL / 不进 localStorage）；所有服务端内容一律 textContent 渲染，
+   接口：GET /api/review/pending · GET /api/review/{ticket} · POST /api/review/decision
+   鉴权（v2.0.0 P5）：令牌改走 Authorization: Bearer 头（不进 URL / 不进访问日志）。
+   安全：令牌只放 sessionStorage（不进 localStorage）；所有服务端内容一律 textContent 渲染，
         绝不使用 innerHTML，避免上下文里的用户输入造成 XSS。
+   回访待办：队列接口附带 followups（到期回访只读交付；回访为线下人工动作，不在系统留痕），
+        匿名标识只显示前八位，不落明文。
    合规红线：本页不展示、不保存任何热线号码。 */
 (function () {
   'use strict';
@@ -20,9 +23,16 @@
   function setMsg(id, text) { var n = $(id); if (n) { n.textContent = text || ''; } }
 
   function api(path, init) {
-    var sep = path.indexOf('?') === -1 ? '?' : '&';
-    var url = BASE + path + sep + 'token=' + encodeURIComponent(state.token);
-    return fetch(url, init).then(function (r) {
+    // v2.0.0 P5：令牌从 query 迁到 Authorization 头——query 会进网址栏、访问日志与浏览器历史。
+    var opts = init || {};
+    var headers = {};
+    var k;
+    for (k in opts.headers) {
+      if (Object.prototype.hasOwnProperty.call(opts.headers, k)) { headers[k] = opts.headers[k]; }
+    }
+    headers.Authorization = 'Bearer ' + state.token;
+    opts.headers = headers;
+    return fetch(BASE + path, opts).then(function (r) {
       return r.json().catch(function () { return {}; }).then(function (j) {
         return { ok: r.ok, status: r.status, j: j };
       });
@@ -38,6 +48,7 @@
   function errText(res, fallback) {
     var d = plainDetail(res && res.j && res.j.detail);
     if (d) { return d; }
+    if (res && res.status === 401) { return '审核台未授权：缺少或错误的令牌。'; }
     if (res && res.status === 403) { return '审核台未授权：令牌不正确，或服务端未配置审核令牌。'; }
     if (res && res.status === 409) { return '工单的中断态已失效，无法裁决。'; }
     if (res && res.status === 404) { return '工单不存在或已闭环。'; }
@@ -98,6 +109,26 @@
     });
   }
 
+  /* ---------- 回访待办（v2.0.0 P5）：到期回访只读交付，线下动作不在系统留痕 ---------- */
+  function renderFollowups(list) {
+    var ul = $('followupList');
+    if (!ul) { return; }
+    ul.textContent = '';
+    if (!list || !list.length) {
+      ul.appendChild(el('li', 'muted', '暂无到期回访。'));
+      return;
+    }
+    list.forEach(function (f) {
+      var li = el('li', 'q-item');
+      li.appendChild(el('p', 'q-basis',
+        (f.kind || '回访') + ' · 工单 ' + (f.ticket_id || '—') + ' · 计划 ' + fmtTime(f.scheduled_at)));
+      // 匿名标识不渲染明文：仅显示前八位 + 省略号，够值班员核对又不过度暴露。
+      var anon = String(f.anon_key || '');
+      li.appendChild(el('p', 'q-time', '对象 ' + (anon ? anon.slice(0, 8) + '…' : '—')));
+      ul.appendChild(li);
+    });
+  }
+
   function loadQueue() {
     setMsg('queueMsg', '加载中…');
     return api('/api/review/pending').then(function (res) {
@@ -108,6 +139,7 @@
       fillSelect('decision', state.decisions);
       fillSelect('contactKind', state.contacts);
       renderQueue(res.j);
+      renderFollowups(res.j.followups);
       var n = ((res.j && res.j.pending) || []).length;
       setMsg('queueMsg', n ? '' : '当前没有待审工单。');
     }).catch(function () { show('queuePanel', true); setMsg('queueMsg', '无法连接后端，请确认服务已启动。'); });
@@ -207,6 +239,8 @@
     state.ticket = null;
     try { sessionStorage.removeItem(TKEY); } catch (e) { /* ignore */ }
     $('queueList').textContent = '';
+    var fl = $('followupList');
+    if (fl) { fl.textContent = ''; }
     show('queuePanel', false);
     show('casePanel', false);
     show('authPanel', true);

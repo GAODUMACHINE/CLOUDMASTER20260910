@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CloudMaster · 人工审核台</title>
+<link rel="stylesheet" href="../common/tokens.css">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -34,6 +35,10 @@
       </div>
       <p id="queueMsg" class="muted"></p>
       <ul id="queueList" class="queue"></ul>
+
+      <h3>回访待办</h3>
+      <p class="muted">到期回访由系统交付于此；回访为线下人工动作，完成情况不在系统留痕。</p>
+      <ul id="followupList" class="queue"></ul>
     </section>
 
     <section id="casePanel" class="card hidden">
