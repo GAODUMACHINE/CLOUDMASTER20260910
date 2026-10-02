@@ -73,12 +73,16 @@ SSE 是伪流式且 stream 端点无挂起检查（L2 可被绕过）；自评�
 - PR-v2.0.0（本文）、`CLOUDMASTER20260910-TEST.md` 差距回写（附录 C）、功能对照表状态列
   收口、`docs/run-local.md` 同步新契约、`pyproject.toml` version 2.0.0。
 
-## 自测摘要（用户指令：本项目先重构、不写测试样例、不跑测试）
+## 自测摘要
 - `ruff check .` ✓　`ruff format --check .` ✓（142 files）
 - 全模块导入冒烟 ✓（薄壳→storage 同一性断言、graph 链、jobs、services.mail）
 - OpenAPI 路由表核对 ✓（22 条 /api 路由与处置表逐条对齐）
 - 前端红线静态扫描 ✓（审核台页面无 3 位以上数字串/令牌字面量；热线模式串全前端零命中）
-- **pytest / safety 门禁未执行**（用户指令；合并前须补跑全量回归——见待办）
+- **全量回归已补跑（2026-10-02，用户解除不测试指令后）**：默认集 **243 passed + 2 deselected**、
+  safety **34 passed**——与预期数一致。首跑抓出 1 个真 bug 并已修复：`ProfileStore.put`
+  的 `_typed_values` 值序与 INSERT 列清单错位，email/report_opt_in 两列绑反
+  （`get()` 走 data_json 无症状，STOP 退订的 email 列回查静默失效）——详见
+  storage/profiles.py::_typed_values 的防回归注释。
 
 ## 红线核对
 台账/报告/审计不含对话原文；未审核热线一律不下发（默认空数组）；<14 拒服务；
@@ -87,8 +91,8 @@ SSE 是伪流式且 stream 端点无挂起检查（L2 可被绕过）；自评�
 联络动作仍为 noop 桩。
 
 ## 待办
-1. **合并前补跑全量回归**（`pytest` + `pytest -m safety`；预期 243 passed——246 − 删除的 3 例
-   email/confirm 用例）。
+1. ~~合并前补跑全量回归~~ **已完成（2026-10-02）**：243 passed + 2 deselected / safety 34，
+   全绿；首跑抓出并修复 profiles 列绑定错位 1 例（见自测摘要）。
 2. 审核人仍是自填标识（ADR-010 待办未变）。
 3. followups 表无 done_at 列，delivered_recent 暂不做时间过滤（LIMIT 50 截断）。
 4. 旧 JSON→SQLite 生产数据迁移须经 `scripts/migrate_json_to_sqlite.py`（P1 已冒烟验证）。

@@ -84,7 +84,14 @@ class ProfileStore:
 
     @staticmethod
     def _typed_values(cleaned: dict[str, Any]) -> tuple[Any, ...]:
-        """校验后 dict → (age, 布尔列×5, email) 类型列值（缺省字段为 None）。"""
+        """校验后 dict → 类型列值（缺省字段为 None）。
+
+        **逐列显式排列，严格对齐 put() INSERT 的列清单**：
+        (age, is_minor, guardian, emergency, dependency, email, report_opt_in)。
+        勿改回「布尔列循环展开 + email 收尾」的写法——_BOOL_COLUMNS 以 report_opt_in
+        结尾、列清单以 email 在前，循环展开会把两列绑反（v2.0.0 回归实测踩过：
+        email 列存进 '1'，find_keys_by_email 永远查不到，STOP 退订静默失效）。
+        """
 
         def col(name: str) -> Any:
             v = cleaned.get(name)
@@ -92,7 +99,15 @@ class ProfileStore:
                 return None
             return int(v) if name in _BOOL_COLUMNS else v
 
-        return (col("age"), *(col(n) for n in _BOOL_COLUMNS), col("email"))
+        return (
+            col("age"),
+            col("is_minor"),
+            col("guardian_contact_available"),
+            col("emergency_contact_available"),
+            col("dependency_tendency"),
+            col("email"),
+            col("report_opt_in"),
+        )
 
     def get(self, key: str) -> dict[str, Any] | None:
         with self._lock:
