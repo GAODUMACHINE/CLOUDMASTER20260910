@@ -57,7 +57,7 @@ ssh root@<服务器IP>
 
 ```bash
 # 4.1 克隆仓库（新加坡直连 GitHub，几秒）
-git clone https://github.com/GAODUMACHINE/LIGHTCLOUDMASTER20260910.git /opt/lightcloudmaster
+git clone https://github.com/GAODUMACHINE/CLOUDMASTER20260910.git /opt/lightcloudmaster
 cd /opt/lightcloudmaster/deploy
 
 # 4.2 一键装配（重复执行安全；CERT_EMAIL 是证书通知邮箱，用你常用的真实邮箱）

@@ -13,7 +13,7 @@
 set -euo pipefail
 
 APP_DIR="${APP_DIR:-/opt/lightcloudmaster}"
-REPO_URL="${REPO_URL:-https://github.com/GAODUMACHINE/LIGHTCLOUDMASTER20260910.git}"
+REPO_URL="${REPO_URL:-https://github.com/GAODUMACHINE/CLOUDMASTER20260910.git}"
 BRANCH="${BRANCH:-main}"
 DOMAIN="${DOMAIN:-lightcloudmaster.top}"   # 证书名取主域；www 为其 SAN
 CERT_EMAIL="${CERT_EMAIL:-}"
