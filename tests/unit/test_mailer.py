@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from cloudmaster.mailer import Mailer, MailError, OutgoingMail, RecordingChannel, SmtpChannel
+from lightcloudmaster.mailer import Mailer, MailError, OutgoingMail, RecordingChannel, SmtpChannel
 
 
 def _mailer() -> tuple[Mailer, RecordingChannel]:
@@ -94,11 +94,11 @@ def test_sent_ledger_does_not_store_body() -> None:
 
 def test_message_has_ticket_and_utf8_body() -> None:
     ch = RecordingChannel()
-    mailer = Mailer(ch, from_addr="sys@example.com", from_name="云上高士")
+    mailer = Mailer(ch, from_addr="sys@example.com", from_name="拾光云上")
     mailer.send(to="u@example.com", subject="[RP-1] 报告", body="中文正文", ticket="RP-1")
     msg = ch.messages[0].to_email_message()
     assert msg["To"] == "u@example.com"
-    assert "云上高士" in msg["From"]
+    assert "拾光云上" in msg["From"]
     assert msg["Message-ID"]
     assert "中文正文" in msg.get_content()
 

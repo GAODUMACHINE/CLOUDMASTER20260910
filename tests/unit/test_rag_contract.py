@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from cloudmaster.rag.stub import StubRetriever
+from lightcloudmaster.rag.stub import StubRetriever
 
 
 def test_retrieves_in_corpus():

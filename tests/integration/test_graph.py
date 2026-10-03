@@ -8,7 +8,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.types import Command
 
-from cloudmaster.graph import build_graph
+from lightcloudmaster.graph import build_graph
 
 T0 = datetime(2026, 9, 10, 12, 0, tzinfo=UTC)
 

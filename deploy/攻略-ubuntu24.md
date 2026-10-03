@@ -1,4 +1,4 @@
-# CloudMaster 上线攻略：Ubuntu 24.04 + 新加坡服务器 + lightcloudmaster.top
+# LightCloudMaster 上线攻略：Ubuntu 24.04 + 新加坡服务器 + lightcloudmaster.top
 
 > 面向首次部署的手把手清单。全程约 20~30 分钟（不含 DNS 生效等待）。
 > 新加坡节点的三个既定事实：**免 ICP 备案**、**GitHub 直连顺畅**、**服务器时区是
@@ -57,8 +57,8 @@ ssh root@<服务器IP>
 
 ```bash
 # 4.1 克隆仓库（新加坡直连 GitHub，几秒）
-git clone https://github.com/GAODUMACHINE/CLOUDMASTER20260910.git /opt/cloudmaster
-cd /opt/cloudmaster/deploy
+git clone https://github.com/GAODUMACHINE/LIGHTCLOUDMASTER20260910.git /opt/lightcloudmaster
+cd /opt/lightcloudmaster/deploy
 
 # 4.2 一键装配（重复执行安全；CERT_EMAIL 是证书通知邮箱，用你常用的真实邮箱）
 CERT_EMAIL=你的邮箱@example.com bash bootstrap.sh
@@ -69,13 +69,13 @@ CERT_EMAIL=你的邮箱@example.com bash bootstrap.sh
   v1.4.0**（回顾/对照用）：`BRANCH=legacy/v1.4.0 bash bootstrap.sh`（老版本冻结在
   `legacy/v1.4.0` 分支 + `v1.4.0` 标签，GitHub 页面左上角分支切换器可随时浏览）。
 - 脚本会自动：装 git/nginx/certbot → 装 Python 依赖 → 生成 `.env` 骨架 → 创建
-  `cloudmaster` 系统账号 → 注册 systemd 服务与每日定时任务 → 签发 TLS 证书 →
+  `lightcloudmaster` 系统账号 → 注册 systemd 服务与每日定时任务 → 签发 TLS 证书 →
   配好 nginx。任何一步报错，**修掉原因后直接重跑同一条命令**（幂等）。
 
 ## 第 5 步：填配置（唯一的手工编辑）
 
 ```bash
-nano /opt/cloudmaster/.env
+nano /opt/lightcloudmaster/.env
 ```
 
 按用途二选一：
@@ -109,8 +109,8 @@ openssl rand -hex 24
 ## 第 6 步：启动 + 验证
 
 ```bash
-systemctl enable --now cloudmaster
-systemctl status cloudmaster --no-pager      # 应为 active (running)
+systemctl enable --now lightcloudmaster
+systemctl status lightcloudmaster --no-pager      # 应为 active (running)
 ```
 
 三层验证，从内到外：
@@ -123,7 +123,7 @@ curl -sI http://127.0.0.1:8000/web/ | head -1          # → HTTP/1.1 200 OK
 curl -sI https://www.lightcloudmaster.top/ | head -1   # → HTTP/2 200
 
 # 3) 定时任务已在册
-systemctl list-timers cloudmaster-jobs.timer           # 下次触发 09:17（北京时间）
+systemctl list-timers lightcloudmaster-jobs.timer           # 下次触发 09:17（北京时间）
 ```
 
 然后浏览器（本机）打开 **https://www.lightcloudmaster.top/**，走一遍验收：
@@ -137,14 +137,14 @@ systemctl list-timers cloudmaster-jobs.timer           # 下次触发 09:17（�
 ## 第 7 步：日常运维速查
 
 ```bash
-journalctl -u cloudmaster -f                             # 实时日志
-bash /opt/cloudmaster/deploy/update.sh                   # 更新（拉代码→重装→重启）
-systemctl restart cloudmaster                            # 改完 .env 后重启生效
+journalctl -u lightcloudmaster -f                             # 实时日志
+bash /opt/lightcloudmaster/deploy/update.sh                   # 更新（拉代码→重装→重启）
+systemctl restart lightcloudmaster                            # 改完 .env 后重启生效
 .venv/bin/python -m scripts.run_jobs                     # 手动跑一次定时任务
-tar czf backup-$(date +%F).tgz -C /opt/cloudmaster data  # 冷备（含用户数据，勿外传）
+tar czf backup-$(date +%F).tgz -C /opt/lightcloudmaster data  # 冷备（含用户数据，勿外传）
 ```
 
-回滚：`git -C /opt/cloudmaster checkout <旧提交>` 然后重跑 `update.sh`。
+回滚：`git -C /opt/lightcloudmaster checkout <旧提交>` 然后重跑 `update.sh`。
 
 ## 第 8 步：踩坑排查（按出现概率排序）
 
@@ -153,19 +153,19 @@ tar czf backup-$(date +%F).tgz -C /opt/cloudmaster data  # 冷备（含用户数
 | 浏览器打不开，curl 也超时 | 安全组没放行 80/443（第 2 步）——九成是这个 |
 | bootstrap 卡在 certbot / 证书签发失败 | ① DNS 还没生效（回第 1 步验证）② 只加了一条 A 记录（必须两条）③ 安全组 80 没放行（验证要走 80）。修好后直接重跑 bootstrap |
 | `certbot` 报 "Another instance" 或 80 被占 | 重跑前 `systemctl stop nginx`，签完再 `systemctl start nginx`（bootstrap 重跑会自动接续） |
-| 页面能开，发消息 500 | `.env` 的 QWEN_API_KEY 没填/错；或 key 只开了 workspace 专属端点（403）→ 确认 `QWEN_API_HOST=dashscope.aliyuncs.com` 公共端点。改完 `systemctl restart cloudmaster` |
-| 回复整段蹦出、不逐字流 | 浏览器缓存了旧前端：`Ctrl+F5` 强刷；仍不行看 nginx 配置里 `proxy_buffering off` 是否在位（`grep -n buffering /etc/nginx/sites-available/cloudmaster`） |
+| 页面能开，发消息 500 | `.env` 的 QWEN_API_KEY 没填/错；或 key 只开了 workspace 专属端点（403）→ 确认 `QWEN_API_HOST=dashscope.aliyuncs.com` 公共端点。改完 `systemctl restart lightcloudmaster` |
+| 回复整段蹦出、不逐字流 | 浏览器缓存了旧前端：`Ctrl+F5` 强刷；仍不行看 nginx 配置里 `proxy_buffering off` 是否在位（`grep -n buffering /etc/nginx/sites-available/lightcloudmaster`） |
 | 打开是空白/卡注册页 | 同上，旧前端缓存，`Ctrl+F5` |
 | 审核台永远 403 | `.env` 没配 `CM_REVIEWER_TOKEN` 或输错——未配置与错误同文案（有意设计，不泄露链路状态）；改后重启服务 |
-| systemd 服务起不来 | `journalctl -u cloudmaster -n 50` 看报错；多数是 .env 手改时格式错了（等号两边不要加空格） |
+| systemd 服务起不来 | `journalctl -u lightcloudmaster -n 50` 看报错；多数是 .env 手改时格式错了（等号两边不要加空格） |
 | 访问慢 | 大陆→新加坡 RTT 约 70~120ms，属正常；首字延迟主要来自模型（qwen-flash P95≈0.34s），流式观感应当流畅 |
 
 ## 上线性质提醒（三句话）
 
 1. 代码回归全绿（243 passed / safety 34）≠ 发布门禁通过——危机语料批量召回、
-   在线评估等 11 项门禁（`CLOUDMASTER20260910-TEST.md` §9.2）还没跑，**先以
+   在线评估等 11 项门禁（`LIGHTCLOUDMASTER20260910-TEST.md` §9.2）还没跑，**先以
    `CM_STUB=1` 演示模式上线**，页面注明演示性质。
-2. 用户数据落服务器 `/opt/cloudmaster/data/private/`（SQLite），备份文件含用户
+2. 用户数据落服务器 `/opt/lightcloudmaster/data/private/`（SQLite），备份文件含用户
    数据，不要传到任何公开位置。
 3. 若未来转正式运营：未成年人数据出境涉及《个人信息保护法》跨境条款，需重新
    评估服务器地域与合规路径。

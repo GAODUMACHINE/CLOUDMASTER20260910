@@ -4,9 +4,9 @@
 
 ## 变更内容
 - ADR-005（先评审）：Web/注册/未成年人/流式/邮件契约。
-- `cloudmaster/registration.py`：注册年龄门——<14 岁强拒（红线不处理该数据），仅采最小画像白名单；未成年须声明监护人可用信号。
-- `cloudmaster/mailer.py`：邮件 HITL 二次确认——未确认/令牌不符绝不发送，拒绝→不发送且无调用记录。
-- `cloudmaster/web_app.py`：FastAPI——POST /api/register、/api/chat、/api/chat/stream(SSE)、/api/email/confirm。
+- `lightcloudmaster/registration.py`：注册年龄门——<14 岁强拒（红线不处理该数据），仅采最小画像白名单；未成年须声明监护人可用信号。
+- `lightcloudmaster/mailer.py`：邮件 HITL 二次确认——未确认/令牌不符绝不发送，拒绝→不发送且无调用记录。
+- `lightcloudmaster/web_app.py`：FastAPI——POST /api/register、/api/chat、/api/chat/stream(SSE)、/api/email/confirm。
 - 未成年人走 time_guard 50/60 阈值；无任何真实热线号码/真实 SMTP（测试全 fake）。
 
 ## 测试计划

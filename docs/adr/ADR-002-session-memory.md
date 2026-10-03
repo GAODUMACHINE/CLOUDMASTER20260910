@@ -13,7 +13,7 @@ v0.1.0 已在内存 Checkpointer（InMemorySaver）上验证守卫顺序与 L2 �
 ## 决策
 
 ### 1. 持久化 Checkpointer
-- 默认 `data/private/cloudmaster.sqlite3`（相对路径，已 gitignore），可用 `MEMORY_DB_PATH` 环境变量覆盖；
+- 默认 `data/private/lightcloudmaster.sqlite3`（相对路径，已 gitignore），可用 `MEMORY_DB_PATH` 环境变量覆盖；
   禁止绝对路径/密钥硬编码。
 - 按 thread 持久化：同一 thread 刷新/次日继续，`messages`、`turn_count`、`risk_level` 等随 Checkpoint
   接续（守卫状态如 `usage_meta` 亦随之，保证"当日已收尾不重复、次日恢复"跨会话成立）。

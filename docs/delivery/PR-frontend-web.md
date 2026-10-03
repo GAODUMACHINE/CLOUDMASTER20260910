@@ -8,7 +8,7 @@
   打字机流式观感(支持 prefers-reduced-motion)、危机(L2)→人工审核横幅(不放真实热线)、AI 标识+匿名隐私。
 - `frontend/soft-pastel/`：风格一「柔雾奶油」index.html + style.css（雾米/薄荷/暖杏、大圆角、极慢淡入）。
 - `frontend/cloud-glass/`：风格二「云朵玻璃」index.html + style.css（毛玻璃、天蓝灰底、轻盈年轻）。
-- `cloudmaster/web_app.py`：挂载 `/web` 静态目录(html=True)托管上述页面。
+- `lightcloudmaster/web_app.py`：挂载 `/web` 静态目录(html=True)托管上述页面。
 - 新增集成测试：`GET /web/soft-pastel/`、`GET /web/cloud-glass/` 返回 200 并含品牌文案。
 
 ## 测试计划

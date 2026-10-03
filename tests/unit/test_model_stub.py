@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from cloudmaster.model import StubLLM, _StubReply, create_stub_llm
+from lightcloudmaster.model import StubLLM, _StubReply, create_stub_llm
 
 
 def test_stub_llm_returns_reply_content():

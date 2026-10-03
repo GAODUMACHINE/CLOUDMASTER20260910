@@ -6,7 +6,7 @@ import json
 
 import pytest
 
-from cloudmaster.review_queue import CONTACT_KINDS, REVIEW_DECISIONS, ReviewError, ReviewLedger
+from lightcloudmaster.review_queue import CONTACT_KINDS, REVIEW_DECISIONS, ReviewError, ReviewLedger
 
 
 @pytest.fixture

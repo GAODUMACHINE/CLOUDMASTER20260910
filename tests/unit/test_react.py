@@ -5,7 +5,7 @@ from __future__ import annotations
 from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 from langchain_core.messages import AIMessage
 
-from cloudmaster.react import FALLBACK_ANSWER, MAX_STEPS, react_agent
+from lightcloudmaster.react import FALLBACK_ANSWER, MAX_STEPS, react_agent
 
 
 def _llm(responses: list[str]):

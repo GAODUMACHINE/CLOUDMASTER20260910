@@ -18,11 +18,11 @@ v1.4.0 功能齐全但结构债集中：`web_app.py` 单文件 660 行、业务�
 ## 决策
 
 ### 1. Web 层拆分与薄壳策略（P3）
-`cloudmaster/web/` 包取代单文件：`create_app`（装配）+ `deps`（AppContext/鉴权/图辅助）+
+`lightcloudmaster/web/` 包取代单文件：`create_app`（装配）+ `deps`（AppContext/鉴权/图辅助）+
 `schemas`（Pydantic 请求模型）+ `sse` + `routers/{chat,register,report,review,assessment,privacy,appeals,resources}`。
 旧模块（`web_app`/`mailer`/`inbox`/`mail_store`/`privacy`/`appeals`/`resources`/`profile_store`/
 `review_queue`/`crisis_chain`/`service`）改为**同名再导出薄壳**而非删除：唯一实现归新包，
-既有 246 例测试的 `from cloudmaster.xxx import ...` 全部不破——P1 记录的
+既有 246 例测试的 `from lightcloudmaster.xxx import ...` 全部不破——P1 记录的
 「P3 切换后由既有集成用例覆盖 DAL」以零新用例兑现（用户指令：本项目先重构，不写测试样例）。
 
 ### 2. Bearer 鉴权（P3/P5）

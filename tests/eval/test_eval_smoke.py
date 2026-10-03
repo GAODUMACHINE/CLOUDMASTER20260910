@@ -5,8 +5,8 @@ from __future__ import annotations
 import pytest
 from langchain_core.messages import HumanMessage
 
-from cloudmaster.safety.crisis import classify, risk_level_of
-from cloudmaster.supervisor import decide_next
+from lightcloudmaster.safety.crisis import classify, risk_level_of
+from lightcloudmaster.supervisor import decide_next
 from tests.fixtures.crisis_profiles import CRISIS_FIXTURES
 
 

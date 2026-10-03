@@ -1,4 +1,4 @@
-# CLOUDMASTER
+# LIGHTCLOUDMASTER
 
 面向 18-25 岁青年的 AI 心理陪伴与疏导助手——只做支持性陪伴、心理科普、资源转介与情绪疏导，**永远不做诊断、治疗与用药建议**。
 
@@ -27,7 +27,7 @@ pytest -m safety -q   # 危机场景回归（改过词表/prompt/危机逻辑时
 ## 目录结构
 
 ```
-cloudmaster/          # 主包
+lightcloudmaster/          # 主包
 tests/unit/           # 单测（零外部依赖）
 tests/integration/    # 集成（fake LLM 走完整图）
 tests/safety/         # 危机场景回归（失败禁止合并）

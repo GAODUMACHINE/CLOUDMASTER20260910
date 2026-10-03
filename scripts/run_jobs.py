@@ -22,7 +22,7 @@ import sys
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="CloudMaster 定时任务（followups/purge）")
+    parser = argparse.ArgumentParser(description="LightCloudMaster 定时任务（followups/purge）")
     parser.add_argument(
         "task",
         choices=("followups", "purge", "all"),

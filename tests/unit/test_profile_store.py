@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from cloudmaster.profile_store import ProfileStore, ProfileValidationError
+from lightcloudmaster.profile_store import ProfileStore, ProfileValidationError
 
 
 def _store(path):

@@ -7,14 +7,14 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from cloudmaster.graph import build_graph
-from cloudmaster.inbox import KIND_BOUNCE, KIND_REPLY, ReceivedMail
-from cloudmaster.mail_store import InboxStore, ReportRegistry
-from cloudmaster.mailer import Mailer, RecordingChannel
-from cloudmaster.privacy import PrivacyStore
-from cloudmaster.profile_store import ProfileStore
-from cloudmaster.review_queue import ReviewLedger
-from cloudmaster.web_app import create_app
+from lightcloudmaster.graph import build_graph
+from lightcloudmaster.inbox import KIND_BOUNCE, KIND_REPLY, ReceivedMail
+from lightcloudmaster.mail_store import InboxStore, ReportRegistry
+from lightcloudmaster.mailer import Mailer, RecordingChannel
+from lightcloudmaster.privacy import PrivacyStore
+from lightcloudmaster.profile_store import ProfileStore
+from lightcloudmaster.review_queue import ReviewLedger
+from lightcloudmaster.web_app import create_app
 
 MAIL = "user@example.com"
 TOKEN = "review-token"
@@ -37,7 +37,7 @@ class FakeInbox:
 
 def _client(tmp_path, llm, *, channel=None, inbox=None):
     store = ProfileStore(str(tmp_path / "w.json"))
-    mailer = Mailer(channel, from_addr="sys@example.com", from_name="云上高士")
+    mailer = Mailer(channel, from_addr="sys@example.com", from_name="拾光云上")
     app = create_app(
         graph=build_graph(llm, checkpointer=None),
         store=store,
@@ -247,7 +247,7 @@ def test_inbox_stop_unsubscribes_matching_profile(tmp_path, fake_llm_empathic):
 
 
 def test_inbox_poll_propagates_imap_failure(tmp_path, fake_llm_empathic):
-    from cloudmaster.inbox import InboxError
+    from lightcloudmaster.inbox import InboxError
 
     fake = FakeInbox([])
     fake.fail_with = InboxError("IMAP 连接失败：boom")

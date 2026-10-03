@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 
-from cloudmaster.privacy import (
+from lightcloudmaster.privacy import (
     DEFAULT_RETENTION_DAYS,
     RETENTION_CHOICES,
     PrivacyError,

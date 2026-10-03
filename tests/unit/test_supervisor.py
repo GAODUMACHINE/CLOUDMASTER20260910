@@ -2,7 +2,7 @@
 
 from langchain_core.messages import HumanMessage
 
-from cloudmaster.supervisor import MAX_AGENT_HOPS, decide_next, supervisor_node
+from lightcloudmaster.supervisor import MAX_AGENT_HOPS, decide_next, supervisor_node
 
 
 def _state(risk="none", hops=0, text="我最近有点累"):

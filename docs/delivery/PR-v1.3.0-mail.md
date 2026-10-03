@@ -18,7 +18,7 @@ v1.2.0 之前**邮件只有 HITL 闸门、没有收发实现**（核查结论）
 
 ## 变更内容
 
-### 1. 发信：真实 SMTP（`cloudmaster/mailer.py`）
+### 1. 发信：真实 SMTP（`lightcloudmaster/mailer.py`）
 - `SmtpChannel`（标准库 `smtplib`）：`ssl`(465，默认) / `starttls`(587) / `plain`(仅本地调试)；
   支持 `formataddr` 显示名、`Message-ID`、UTF-8 正文。
 - 网络/认证失败抛 `MailError`，**绝不静默**；
@@ -27,19 +27,19 @@ v1.2.0 之前**邮件只有 HITL 闸门、没有收发实现**（核查结论）
   原实现无通道仍返回 `sent=True`（假装成功）——这是本轮修掉的一个真实隐患。
 - 发送台账只留 `to/subject/sent_at/message_id`，**不落正文**（单测锁定）。
 
-### 2. 收信：真实 IMAP（`cloudmaster/inbox.py`）
+### 2. 收信：真实 IMAP（`lightcloudmaster/inbox.py`）
 - `parse_message()` **纯函数**：bytes → 结构化来信，完全离线可测；
 - 分类：`reply`（主题含 `[RP-xxxx]`/`[HR-xxxx]` → 归属报告/工单）、`bounce`（退信）、`auto`（自动回复）、`other`；
 - **只取 `text/plain`、跳过附件**，正文截断 2000 字后才入库；
 - `STOP`/`退订` 等 → 按发件地址回查匿名标识并置 `report_opt_in=False`；
 - `ImapInbox` 只拉 `UNSEEN` 并标记已读；连接/认证失败抛 `InboxError`（接口 → 502）。
 
-### 3. 报告生成（`cloudmaster/report.py`）
+### 3. 报告生成（`lightcloudmaster/report.py`）
 - `build_report()` 纯函数：会话轮次、风险分级、时长守护、**引用来源标题**、建议动作、免责声明；
 - **绝不含对话原文**（`contains_raw_conversation=False` + 单测锁定原话不出现）；
 - 编号 `RP-xxxxxx` 写入主题，供收信侧归属回信。
 
-### 4. 接口（`cloudmaster/web_app.py`）
+### 4. 接口（`lightcloudmaster/web_app.py`）
 | 接口 | 说明 |
 | --- | --- |
 | `GET /api/report/{key}` | 生成**草稿**（内存，不发送），返回绑定「匿名标识+报告编号」的 `confirm_token` |

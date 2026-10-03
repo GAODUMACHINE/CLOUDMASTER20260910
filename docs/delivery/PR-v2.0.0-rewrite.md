@@ -20,7 +20,7 @@ SSE 是伪流式且 stream 端点无挂起检查（L2 可被绕过）；自评�
 ## 变更内容（六环节六提交）
 
 ### P3 feat(web)：Web 层拆分 + Bearer 鉴权 + 真 SSE
-- `cloudmaster/web/` 包取代单文件：`__init__`（装配）/ `deps`（AppContext + 鉴权 + 图辅助 +
+- `lightcloudmaster/web/` 包取代单文件：`__init__`（装配）/ `deps`（AppContext + 鉴权 + 图辅助 +
   挂起检查单点化）/ `schemas` / `sse` / `routers/{chat,register,report,review,assessment,privacy,appeals,resources}`。
 - 鉴权新契约：chat 侧 `Authorization: Bearer <profile_key>`（匿名 ID 即凭证，缺失 401，
   body 只剩 `{"text"}`）；审核侧 `Authorization: Bearer <CM_REVIEWER_TOKEN>` 取代 query
@@ -38,7 +38,7 @@ SSE 是伪流式且 stream 端点无挂起检查（L2 可被绕过）；自评�
 - 测试契约同步（4 文件机械修改）：chat 调用 Bearer 化、审核令牌 query→header、删 3 用例。
 
 ### P4 feat(services)：业务服务层 + 存储增强 + 处置闭环
-- `cloudmaster/services/`：`session`（service_turn 迁入）、`registration`（注册三步写 +
+- `lightcloudmaster/services/`：`session`（service_turn 迁入）、`registration`（注册三步写 +
   **协议签署留痕**）、`assessment`（自评计分 + source=assessment 开案）、`report`
   （报告全链路 + ReportServiceError；`report_status` **按本人过滤**修跨用户泄漏）；
   `service.py` 薄壳。
@@ -76,7 +76,7 @@ SSE 是伪流式且 stream 端点无挂起检查（L2 可被绕过）；自评�
 ### P8 docs(governance)：文档治理
 - ADR-011（重写决策：分层/薄壳/Bearer/SSE/assessment 闭环/回访生命周期/jobs 边界/审计
   种类/固定 UTC+8 归档）、ADR-012（统一 SQLite 底座，P1 追记）。
-- PR-v2.0.0（本文）、`CLOUDMASTER20260910-TEST.md` 差距回写（附录 C）、功能对照表状态列
+- PR-v2.0.0（本文）、`LIGHTCLOUDMASTER20260910-TEST.md` 差距回写（附录 C）、功能对照表状态列
   收口、`docs/run-local.md` 同步新契约、`pyproject.toml` version 2.0.0。
 
 ## 自测摘要

@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 
 from langchain_core.messages import AIMessage, HumanMessage
 
-from cloudmaster.report import DISCLAIMER, build_report, new_report_id
+from lightcloudmaster.report import DISCLAIMER, build_report, new_report_id
 
 
 def _msgs():

@@ -1,4 +1,4 @@
-/* CloudMaster 前端共享逻辑
+/* LightCloudMaster 前端共享逻辑
    - 年龄门(<14 强拒 / 未成年需监护人信号)
    - chat 走 POST /api/chat/stream（SSE 真流式：token 逐段 / reply 整段 / held 挂起 / done 终态+notices），
      鉴权 Bearer 头携带匿名标识、body 只传 text；流式不可用时降级旧 POST /api/chat（打字机模拟）
@@ -150,7 +150,7 @@
         setupReport();
         refreshReportOpt(); // 注册成功即初始化退订开关（默认开启）
         showPanel('chat');
-        addMsg('你好，我是 CloudMaster 陪伴助手。感觉怎么样？','ai');
+        addMsg('你好，我是 LightCloudMaster 陪伴助手。感觉怎么样？','ai');
         notify('');
       }).
       catch(function () { notify('无法连接后端，请确认服务已启动。'); });
@@ -585,13 +585,13 @@
           var url = URL.createObjectURL(blob);
           var a = document.createElement('a');
           a.href = url;
-          a.download = 'cloudmaster-export.json';
+          a.download = 'lightcloudmaster-export.json';
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
           setTimeout(function () { URL.revokeObjectURL(url); }, 0);
           var n = (k && typeof k.message_count === 'number') ? k.message_count : 0;
-          if (eMsg) { eMsg.textContent = '导出已开始下载（cloudmaster-export.json），共 ' + n + ' 条会话记录。'; }
+          if (eMsg) { eMsg.textContent = '导出已开始下载（lightcloudmaster-export.json），共 ' + n + ' 条会话记录。'; }
         } catch (e3) {
           if (eMsg) { eMsg.textContent = '浏览器不支持本地导出，请更换浏览器后重试。'; }
         }

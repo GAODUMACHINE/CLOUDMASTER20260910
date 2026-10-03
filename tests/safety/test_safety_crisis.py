@@ -7,7 +7,7 @@
 
 import pytest
 
-from cloudmaster.safety.crisis import classify, risk_level_of
+from lightcloudmaster.safety.crisis import classify, risk_level_of
 from tests.fixtures.crisis_corpus import BENIGN_CASES, HIGH_CASES, LOW_CASES, RULE_HIGH_IDS
 
 EXPLICIT_CORPUS = [

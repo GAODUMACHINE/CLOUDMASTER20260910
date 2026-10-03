@@ -1,6 +1,6 @@
 """crisis 两级判定 + 落痕审计（unit，零外部依赖）。"""
 
-from cloudmaster.safety.crisis import L1_WORDS, L2_WORDS, classify, risk_level_of
+from lightcloudmaster.safety.crisis import L1_WORDS, L2_WORDS, classify, risk_level_of
 
 
 def test_l2_words_force_high_recall():

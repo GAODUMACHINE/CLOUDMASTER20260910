@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from cloudmaster.assessment import (
+from lightcloudmaster.assessment import (
     CHOICE_SCALE,
     ITEMS,
     URGENT_BAND,

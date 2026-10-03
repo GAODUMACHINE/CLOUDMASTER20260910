@@ -22,7 +22,7 @@
 ## 决策
 
 1. **审核台作为独立台账 + 复用既有图恢复机制**，不新增图节点、不改守卫顺序：
-   - 新增 `cloudmaster/review_queue.py`：`ReviewLedger` 以 append-only JSONL（`data/private/reviews.jsonl`，
+   - 新增 `lightcloudmaster/review_queue.py`：`ReviewLedger` 以 append-only JSONL（`data/private/reviews.jsonl`，
      gitignored）记录「开案行」与「结论行」，`get()` 对已闭环工单返回 `None`，
      **保证审核结论唯一、不可覆写**；同一 thread 未闭环期间不重复开案。
    - 台账**只落判定依据与摘要，绝不落对话原文**（3.2.4「业务日志不落对话原文」硬约束）。
@@ -33,15 +33,15 @@
 2. **审核台访问控制**：`create_app(..., reviewer_token=...)`，未配置令牌或令牌不匹配一律 **403**，
    且不区分「未开通」与「令牌错误」，避免向未授权者泄露该链路是否启用；令牌比对用
    `secrets.compare_digest`。审核台会返回会话上下文，属敏感数据，故默认最小暴露。
-3. **自评实现为纯规则模块，不接入图**：新增 `cloudmaster/assessment.py`，4 条自拟措辞条目
+3. **自评实现为纯规则模块，不接入图**：新增 `lightcloudmaster/assessment.py`，4 条自拟措辞条目
    （不复制受版权保护的量表原文），计分映射为区间；返回体**不含任何分数与诊断词汇**。
    达「建议尽快寻求专业帮助」区间 → 登记审核台待审案件（与 L2 同一兜底链路，不自行处理）。
    因不写 `AgentState` 任何字段，无需 ADR-001 schema 评审。
-4. **隐私保留期独立存储**：新增 `cloudmaster/privacy.py`，保留期偏好单独落
+4. **隐私保留期独立存储**：新增 `lightcloudmaster/privacy.py`，保留期偏好单独落
    `data/private/privacy.json`，**不写入画像白名单**（`profile_store.ALLOWED_FIELDS` 不放宽，
    维持最小化）；默认 30 天，仅接受 7/30/90。导出为纯函数 `export_bundle`，
    由接口把 Checkpointer 中的消息取出后组装，服务端不额外落盘原文。
-5. **已审核资源库**：新增 `cloudmaster/resources.py`，默认返回**空列表**；
+5. **已审核资源库**：新增 `lightcloudmaster/resources.py`，默认返回**空列表**；
    只有经审核台录入（须令牌 + 审核人署名）的号码才下发。号码做宽松格式校验，
    允许 5 位政务服务号码，拒绝一切非号码字符（`+86`、`#`、扩展号一律拒绝）。
 6. **依赖识别仍只写 `usage_meta`**：`time_guard` 新增 `detect_dependency`（近 24h 内会话

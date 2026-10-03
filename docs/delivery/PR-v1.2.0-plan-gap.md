@@ -5,7 +5,7 @@
 
 ## 背景
 
-以《云上高士——基于 Multi-Agent 协作模式的青年心理疏导系统》项目计划书逐条核对代码，
+以《拾光云上——基于 Multi-Agent 协作模式的青年心理疏导系统》项目计划书逐条核对代码，
 确认以下**计划书已承诺但尚未实现**的能力，本轮补齐：
 
 | 计划书出处 | 缺失能力 | 状态 |
@@ -19,7 +19,7 @@
 
 ## 变更内容
 
-### 1. 人工审核台（`cloudmaster/review_queue.py` + 3 个接口）
+### 1. 人工审核台（`lightcloudmaster/review_queue.py` + 3 个接口）
 - `ReviewLedger`：append-only JSONL（`data/private/reviews.jsonl`，gitignored）。
   **开案行 + 结论行**两段式；`get()` 对已闭环工单返回 `None`，保证结论唯一不可覆写；
   同一 thread 未闭环期间不重复开案；闭环后再次触发可重新开案。
@@ -33,14 +33,14 @@
   且不区分「未开通」与「令牌错误」以免泄露链路是否启用；比对用 `secrets.compare_digest`。
 - `/api/chat` 在 `risk_level=high` 时返回 `escalation.ticket_id`，前端危机横幅显示受理编号。
 
-### 2. 情绪自评（`cloudmaster/assessment.py`）
+### 2. 情绪自评（`lightcloudmaster/assessment.py`）
 - 4 条**自拟措辞**的日常感受条目（不复制任何受版权保护的量表原文），4 档选项，
   计分映射为 4 个区间（平稳 / 需要留意 / 建议寻求支持 / 建议尽快寻求专业帮助）。
 - 返回体**不含任何分数**，只用区间名 + 建议动作 + 「不构成诊断」声明；前端亦不渲染分数。
 - 达「建议尽快寻求专业帮助」区间 → 登记审核台待审案件（**不自行处理**，与 L2 同一兜底链路）。
 - 实现为**纯规则模块、不接入图**，不写 `AgentState` 任何字段，故 ADR-001 无需 schema 变更。
 
-### 3. 隐私保留期与一键导出（`cloudmaster/privacy.py`）
+### 3. 隐私保留期与一键导出（`lightcloudmaster/privacy.py`）
 - 保留期偏好独立落 `data/private/privacy.json`，**不写入画像白名单**
   （`profile_store.ALLOWED_FIELDS` 不放宽，隐私最小化不变）；默认 30 天，仅接受 7/30/90。
 - `purge_schedule` 给出 `created_at + retention_days` 的到期删除时间与是否已过期。
@@ -48,13 +48,13 @@
 - 接口：`GET /api/privacy/{key}`、`POST /api/privacy/{key}/retention`、`GET /api/privacy/{key}/export`；
   删除账号时同步清除保留期偏好。
 
-### 4. 已审核资源（`cloudmaster/resources.py`）
+### 4. 已审核资源（`lightcloudmaster/resources.py`）
 - 默认返回**空列表**；只有经审核台录入（**须令牌 + 审核人署名，缺一不可**）才下发。
 - 号码宽松格式校验：允许 5 位政务服务号码（如 12345），拒绝 `+86`、`#`、扩展号等一切非号码字符。
 - 前端在既有 `<ul id="resourceList">` 中追加已审核条目，号码用 `<span class="hotline-tel">` 呈现；
   空数组不渲染任何内容（安全默认）。
 
-### 5. 依赖倾向自动识别（`cloudmaster/time_guard.py`）
+### 5. 依赖倾向自动识别（`lightcloudmaster/time_guard.py`）
 - 新增 `detect_dependency`：近 24h 内会话次数 ≥8 次即判为高频连续使用。
 - 命中（自述 **或** 自动识别）→ 提示并写 `usage_meta.recent_session_starts` /
   `dependency_observed` / `disclosure_done`——**均为既有 `usage_meta` 字段，不新增顶层 State 字段**。

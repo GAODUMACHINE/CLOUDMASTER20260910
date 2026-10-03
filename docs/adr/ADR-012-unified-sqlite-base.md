@@ -15,7 +15,7 @@ v1.x 各业务各持一种持久化：JSON / JSONL / 内存 dict，散落 `data/
 ## 决策
 
 ### 1. 单库 14 表 + 按文件分连接
-`cloudmaster/storage/db.py` 持全部 DDL：`profiles / privacy_settings / agreements / review_cases
+`lightcloudmaster/storage/db.py` 持全部 DDL：`profiles / privacy_settings / agreements / review_cases
 （source 列 P1 即预置）/ review_decisions / appeals / appeal_events / inbox_mails /
 report_drafts / report_sents / mail_sent_ledger / audit_events / followups / resources`。
 每个 DB 文件一个连接 + 一个 `threading.RLock`（同库串行、跨库并行），WAL 模式；

@@ -4,9 +4,9 @@
 
 ## 变更内容
 - ADR-004（先评审）：RAG 检索契约——可插拔 Retriever；命中必附引用(原文片段+来源)；库外不编造来源、声明边界转专业资源；来源一律虚构可溯源。
-- `cloudmaster/rag/`：base = Retriever 协议 + Document；stub = 确定性内存语料（主题关键词子串匹配）。
-- `cloudmaster/agents/knowledge.py`：命中→回复附「参考来源」并写 citations；库外→边界声明、citations 不新增。
-- `cloudmaster/graph.py`：build_graph(row `retriever=None`→StubRetriever)，knowledge 节点接入。
+- `lightcloudmaster/rag/`：base = Retriever 协议 + Document；stub = 确定性内存语料（主题关键词子串匹配）。
+- `lightcloudmaster/agents/knowledge.py`：命中→回复附「参考来源」并写 citations；库外→边界声明、citations 不新增。
+- `lightcloudmaster/graph.py`：build_graph(row `retriever=None`→StubRetriever)，knowledge 节点接入。
 - citations 仍仅 knowledge 写（ADR-001 不变）；守卫顺序未改。
 
 ## 测试计划

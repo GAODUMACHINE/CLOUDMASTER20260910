@@ -3,7 +3,7 @@
 - 状态：评审通过（v1.3.0）
 - 日期：2026-09-17
 - 关联：ADR-005（注册与邮件 HITL）、ADR-007（匿名身份与申诉）、ADR-008（审核台与隐私保留期）、
-  计划书 3.1.3-6/8、3.2.3、3.2.4、3.3.1、P1；`CLOUDMASTER20260910-TEST.md` TC-REPORT-001
+  计划书 3.1.3-6/8、3.2.3、3.2.4、3.3.1、P1；`LIGHTCLOUDMASTER20260910-TEST.md` TC-REPORT-001
 
 ## 上下文
 
@@ -22,18 +22,18 @@ TC-REPORT-001「发送前出现前端二次确认」均无法执行。
 
 ## 决策
 
-1. **发信：标准库 `smtplib` 真实通道**（`cloudmaster/mailer.py`）。
+1. **发信：标准库 `smtplib` 真实通道**（`lightcloudmaster/mailer.py`）。
    `SmtpChannel` 支持 `ssl`（465，默认）/ `starttls`（587）/ `plain`（仅本地调试）；
    网络或认证失败抛 `MailError`，**绝不静默吞掉**，避免「未送达」被当成成功。
 2. **未配置通道绝不假装成功**：`Mailer()` 无通道时 `enabled=False`，`send()` 抛错，
    `send_if_confirmed()` 返回 `sent=False` 并说明「未配置 SMTP_*」。
    这是对原内存桩语义的**收紧**（原实现返回 `sent=True` 却什么都没发）。
-3. **收信：标准库 `imaplib`**（`cloudmaster/inbox.py`）。
+3. **收信：标准库 `imaplib`**（`lightcloudmaster/inbox.py`）。
    - `parse_message()` 为**纯函数**（bytes → 结构化来信），可完全离线单测；
    - 只取 `text/plain`、**跳过附件**、正文截断 2000 字后才入库；
    - 分类 `reply` / `bounce` / `auto` / `other`；主题含 `[RP-xxxx]`/`[HR-xxxx]` 即归属报告或工单；
    - 正文含 `STOP`/`退订` → 按发件地址回查匿名标识并置 `report_opt_in=False`。
-4. **报告生成与发送分离**（`cloudmaster/report.py`）：
+4. **报告生成与发送分离**（`lightcloudmaster/report.py`）：
    `build_report()` 为纯函数，**只输出聚合信息与建议，绝不含对话原文**
    （`contains_raw_conversation=False`，并有单测锁定）；报告编号 `RP-xxxxxx` 写入主题，
    作为收信侧回信归属依据。

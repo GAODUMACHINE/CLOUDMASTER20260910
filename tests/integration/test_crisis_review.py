@@ -6,7 +6,7 @@ from langchain_core.messages import HumanMessage
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.types import Command
 
-from cloudmaster.graph import build_graph
+from lightcloudmaster.graph import build_graph
 
 
 def _cfg(tid):

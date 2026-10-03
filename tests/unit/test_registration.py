@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from cloudmaster.registration import RegistrationError, register, valid_email
+from lightcloudmaster.registration import RegistrationError, register, valid_email
 
 
 def test_under_14_rejected() -> None:

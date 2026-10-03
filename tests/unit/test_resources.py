@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from cloudmaster.resources import ResourceError, ResourceStore
+from lightcloudmaster.resources import ResourceError, ResourceStore
 
 
 @pytest.fixture

@@ -12,20 +12,20 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from fastapi.testclient import TestClient
 
-from cloudmaster.graph import build_graph
-from cloudmaster.mailer import Mailer
-from cloudmaster.privacy import PrivacyStore
-from cloudmaster.profile_store import ProfileStore
-from cloudmaster.resources import ResourceStore
-from cloudmaster.review_queue import ReviewLedger
-from cloudmaster.time_guard import (
+from lightcloudmaster.graph import build_graph
+from lightcloudmaster.mailer import Mailer
+from lightcloudmaster.privacy import PrivacyStore
+from lightcloudmaster.profile_store import ProfileStore
+from lightcloudmaster.resources import ResourceStore
+from lightcloudmaster.review_queue import ReviewLedger
+from lightcloudmaster.time_guard import (
     ALL_LONG_MIN,
     DEP_FREQ_THRESHOLD,
     MINOR_CLOSE_MIN,
     MINOR_PRE_MIN,
     evaluate,
 )
-from cloudmaster.web_app import create_app
+from lightcloudmaster.web_app import create_app
 
 # 合规模块整体纳入 safety 回归：`pytest -m safety` 必须覆盖合规用例集（发布门禁）。
 pytestmark = pytest.mark.safety

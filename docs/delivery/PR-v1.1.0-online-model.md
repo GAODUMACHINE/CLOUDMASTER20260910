@@ -29,7 +29,7 @@
 - 修 **跨用户串会话**：`profile_key` 原为 `hash(age)` 推导，同龄用户共用同一 `thread_id`
   （且受 `PYTHONHASHSEED` 影响跨进程漂移）→ 改为 `secrets.token_urlsafe(12)`。
 - 新增 `DELETE /api/profile/{key}`（幂等、不泄露标识是否存在）、`POST /api/appeal`（工单号）、
-  `GET /api/resources`（不含任何热线号码）；`cloudmaster/appeals.py` append-only 台账。
+  `GET /api/resources`（不含任何热线号码）；`lightcloudmaster/appeals.py` append-only 台账。
 - 前端「设置与资源」面板：转介资源、申诉表单、一键删除退出、产品边界说明；
   未成年模式标记持久化（刷新后不再丢失）。
 
@@ -61,7 +61,7 @@
 - 在线（`qwen-flash`，20 样本）：首 token P50 0.27s / **P95 0.40s ✅**；危机召回 **100%（21 条）**、
   **漏检 0 ✅**、误报 **0%（8 条）✅**；路由 **100%（10 条）✅**；L2 在 human_review 前中断 ✅；
   端到端整轮 P50 1.59s / P95 2.67s（非流式整轮；门禁口径是首 token）。
-- 生产入口手工验收（`cloudmaster.server:app`，真实模型 + SQLite checkpointer）：注册同龄 ID 唯一 ✅、
+- 生产入口手工验收（`lightcloudmaster.server:app`，真实模型 + SQLite checkpointer）：注册同龄 ID 唯一 ✅、
   thread 隔离 ✅、L0/L1/L2 分级 ✅、告别暗示判 high ✅、申诉工单 ✅、资源页无号码 ✅、删除幂等 ✅。
 - `node --check frontend/common/api.js` ✓
 

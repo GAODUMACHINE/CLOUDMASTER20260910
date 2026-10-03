@@ -6,7 +6,7 @@ from email.message import EmailMessage
 
 import pytest
 
-from cloudmaster.inbox import (
+from lightcloudmaster.inbox import (
     KIND_AUTO,
     KIND_BOUNCE,
     KIND_OTHER,

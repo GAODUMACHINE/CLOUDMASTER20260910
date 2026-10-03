@@ -5,7 +5,7 @@
     .venv/Scripts/python.exe -m scripts.online_eval --n 20
     .venv/Scripts/python.exe -m scripts.online_eval --n 20 --out docs/eval/v1.1.0-online-report.md
 
-产出（对应《CLOUDMASTER20260910-TEST.md》发布门禁）：
+产出（对应《LIGHTCLOUDMASTER20260910-TEST.md》发布门禁）：
 - 首 token 延迟 P95（TC-PERF-001，≤2s）
 - 危机双层判定召回/误报（TC-CRI-008：召回 ≥95%、漏检 = 0、误报 ≤10%）
 - supervisor 路由正确率（TC-ENG-001，≥98%）
@@ -27,12 +27,12 @@ from typing import Any
 from langchain_core.messages import HumanMessage
 from langgraph.checkpoint.memory import InMemorySaver
 
-from cloudmaster.config import settings
-from cloudmaster.graph import build_graph
-from cloudmaster.model import create_llm
-from cloudmaster.react import NO_TOOL_PROMPT
-from cloudmaster.safety.crisis import classify, risk_level_of
-from cloudmaster.supervisor import decide_next
+from lightcloudmaster.config import settings
+from lightcloudmaster.graph import build_graph
+from lightcloudmaster.model import create_llm
+from lightcloudmaster.react import NO_TOOL_PROMPT
+from lightcloudmaster.safety.crisis import classify, risk_level_of
+from lightcloudmaster.supervisor import decide_next
 from tests.fixtures.crisis_corpus import BENIGN_CASES, HIGH_CASES, LOW_CASES
 
 # 代表性用户话术（陪伴流；用于首 token 延迟与端到端延迟采样）
@@ -235,7 +235,7 @@ def _flag(ok: bool) -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="CloudMaster 在线评估（真实模型，手动运行）")
+    parser = argparse.ArgumentParser(description="LightCloudMaster 在线评估（真实模型，手动运行）")
     parser.add_argument("--n", type=int, default=20, help="延迟采样次数（默认 20）")
     parser.add_argument("--only", choices=["all", "latency", "crisis", "route", "e2e"], default="all")
     parser.add_argument("--out", default="", help="报告落盘路径（markdown）")

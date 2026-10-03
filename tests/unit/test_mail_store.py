@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from cloudmaster.mail_store import InboxStore, MailStoreError, ReportRegistry
+from lightcloudmaster.mail_store import InboxStore, MailStoreError, ReportRegistry
 
 
 @pytest.fixture

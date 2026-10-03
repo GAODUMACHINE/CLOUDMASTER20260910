@@ -4,7 +4,7 @@
 
 ## 变更内容
 - ADR-003（先评审）：新增 State 字段 audit_log/contact_log/next_followup（human_review 唯一写）。
-- `cloudmaster/crisis_chain.py`：L2 审核处理——审计落痕（时间/依据/审核人/结论/联络动作）+ 联络桩不触真实 + 次日温和回访安排。
+- `lightcloudmaster/crisis_chain.py`：L2 审核处理——审计落痕（时间/依据/审核人/结论/联络动作）+ 联络桩不触真实 + 次日温和回访安排。
 - `human_review` 节点增强：approve→审计+联络桩+回访；block→仅审计，无联络。
 - 虚构档案 A1~A7（tests/fixtures/crisis_profiles.py），绝不影响真实联络/热线（红线 §6）。
 - ADR-001 守卫顺序未改；ADR-003 字段已评审。

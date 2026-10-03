@@ -5,7 +5,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "cloudmaster"
+name = "lightcloudmaster"
 version = "2.0.0"
 description = "面向18-25岁青年的AI心理陪伴与疏导助手（不做诊断/用药建议）"
 requires-python = ">=3.11"
@@ -38,12 +38,12 @@ dev = [
     "ruff>=0.8",
 ]
 
-# 包发现必须显式：仓库是扁平布局（cloudmaster/ + frontend/ + deploy/ 三个顶层目录），
+# 包发现必须显式：仓库是扁平布局（lightcloudmaster/ + frontend/ + deploy/ 三个顶层目录），
 # 新版 setuptools 对多顶层目录拒绝自动猜测（报 "Multiple top-level packages
-# discovered in a flat-layout"）。只打包 cloudmaster；scripts/ 经 `python -m
+# discovered in a flat-layout"）。只打包 lightcloudmaster；scripts/ 经 `python -m
 # scripts.run_jobs` 从仓库根目录运行（CWD 即在 sys.path），无需入包。
 [tool.setuptools.packages.find]
-include = ["cloudmaster*"]
+include = ["lightcloudmaster*"]
 
 [tool.ruff]
 line-length = 110

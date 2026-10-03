@@ -1,4 +1,4 @@
-# CloudMaster 本地运行指南（视觉风格：云朵玻璃）
+# LightCloudMaster 本地运行指南（视觉风格：云朵玻璃）
 
 > 目标：本机一键启动带真实 Qwen 的 FastAPI 服务，前端使用「云朵玻璃 /web/cloud-glass/」。
 > **公网部署（lightcloudmaster.top）见 [deploy/README.md](../deploy/README.md)**——
@@ -30,7 +30,7 @@
 # PowerShell（Windows）
 .\run_web.ps1
 # 或直接
-& .\.venv\Scripts\python.exe -m uvicorn cloudmaster.server:app --host 127.0.0.1 --port 8000
+& .\.venv\Scripts\python.exe -m uvicorn lightcloudmaster.server:app --host 127.0.0.1 --port 8000
 ```
 打开 **http://127.0.0.1:8000/web/cloud-glass/**（用户前端）。
 
@@ -165,10 +165,10 @@ cron / Windows 计划任务装配依赖后调用。示例（与 server.py 同款
 
 ```powershell
 # 次日回访到期交付（pending → done，进审核台待办区）
-& .\.venv\Scripts\python.exe -c "from cloudmaster.storage.followups import FollowupQueue; from cloudmaster.jobs.followups import run_due; print(run_due(queue=FollowupQueue()))"
+& .\.venv\Scripts\python.exe -c "from lightcloudmaster.storage.followups import FollowupQueue; from lightcloudmaster.jobs.followups import run_due; print(run_due(queue=FollowupQueue()))"
 
 # 保留期到期真删除（thread + 画像 + 保留期记录 + 报告台账；申诉台账不参与）
-& .\.venv\Scripts\python.exe -c "import os; from cloudmaster.model import create_llm, create_stub_llm; from cloudmaster.graph import build_graph; from cloudmaster.persistence import build_checkpointer; from cloudmaster.profile_store import ProfileStore; from cloudmaster.privacy import PrivacyStore; from cloudmaster.storage.reports import ReportRegistry; from cloudmaster.jobs.purge import run_purge; llm = create_stub_llm() if os.environ.get('CM_STUB') == '1' else create_llm(); print(run_purge(graph=build_graph(llm, checkpointer=build_checkpointer()), profiles=ProfileStore(), privacy=PrivacyStore(), reports=ReportRegistry()))"
+& .\.venv\Scripts\python.exe -c "import os; from lightcloudmaster.model import create_llm, create_stub_llm; from lightcloudmaster.graph import build_graph; from lightcloudmaster.persistence import build_checkpointer; from lightcloudmaster.profile_store import ProfileStore; from lightcloudmaster.privacy import PrivacyStore; from lightcloudmaster.storage.reports import ReportRegistry; from lightcloudmaster.jobs.purge import run_purge; llm = create_stub_llm() if os.environ.get('CM_STUB') == '1' else create_llm(); print(run_purge(graph=build_graph(llm, checkpointer=build_checkpointer()), profiles=ProfileStore(), privacy=PrivacyStore(), reports=ReportRegistry()))"
 ```
 
 两者重复执行无副作用；清除轮次经 `privacy.log_purge` 落一条 `purge_executed` 汇总审计。
@@ -197,7 +197,7 @@ cron / Windows 计划任务装配依赖后调用。示例（与 server.py 同款
   2) 或命令行一次性绕过：
      powershell -NoProfile -ExecutionPolicy Bypass -File .\run_web.ps1
   3) 或本用户放行一次：Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
-- 也可完全绕过脚本，直接跑：& .\.venv\Scripts\python.exe -m uvicorn cloudmaster.server:app --host 127.0.0.1 --port 8000
+- 也可完全绕过脚本，直接跑：& .\.venv\Scripts\python.exe -m uvicorn lightcloudmaster.server:app --host 127.0.0.1 --port 8000
 
 ## 8. 测试报 PermissionError（tmp_path 不可写）
 受限沙箱/只读盘下 pytest 的 `tmp_path` 可能落在不可写目录，表现为

@@ -4,9 +4,9 @@
 
 ## 变更内容
 - **ADR-002 先评审后编码**：`docs/adr/ADR-002-session-memory.md`。
-- `cloudmaster/persistence.py`：文件后备 SqliteSaver（默认 `data/private/cloudmaster.sqlite3`，`MEMORY_DB_PATH` 可覆盖），按 thread 跨刷新/跨天接续。
-- `cloudmaster/profile_store.py`：最小画像 Store（文件后备 JSON），字段白名单（age/is_minor/guardian_contact_available/emergency_contact_available/dependency_tendency），未知字段一律拒绝；get/put/delete/clear_all——可查看、可清除。
-- `cloudmaster/service.py`：服务层注入 `user_profile`（图内只读），可更新画像并持久化。
+- `lightcloudmaster/persistence.py`：文件后备 SqliteSaver（默认 `data/private/lightcloudmaster.sqlite3`，`MEMORY_DB_PATH` 可覆盖），按 thread 跨刷新/跨天接续。
+- `lightcloudmaster/profile_store.py`：最小画像 Store（文件后备 JSON），字段白名单（age/is_minor/guardian_contact_available/emergency_contact_available/dependency_tendency），未知字段一律拒绝；get/put/delete/clear_all——可查看、可清除。
+- `lightcloudmaster/service.py`：服务层注入 `user_profile`（图内只读），可更新画像并持久化。
 - 记忆不混用：Store 只存「这个用户」，心理知识/引用归 knowledge（v0.4.0 接入）。
 - ADR-001 State 字段表未增改（仅新增持久化层与注入点）。
 

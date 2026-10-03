@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from cloudmaster.crisis_chain import ContactService, handle_review
+from lightcloudmaster.crisis_chain import ContactService, handle_review
 
 B = {"final_level": "L2", "reason": "规则命中2个关键词"}
 

@@ -4,13 +4,13 @@
 
 ## 变更内容
 - LangGraph 图拓扑（不可绕过）：`time_guard → crisis → supervisor → empathic/knowledge`（ADR-001）。
-- **单 Agent ReAct**（`cloudmaster/react.py`）：text 协议决策（`TOOL:` 行触发工具/否则即最终答案），
+- **单 Agent ReAct**（`lightcloudmaster/react.py`）：text 协议决策（`TOOL:` 行触发工具/否则即最终答案），
   `max_steps` 上限保护防死循环（红线 §6-7），超出回退兜底回复；prompt 禁区：不诊断/不开药/不评判。
 - `empathic` 节点改用 ReAct 承载 L0/L1 支持性回复；L2 走 `HIGH_RISK_SUPPORT` 并由 `human_review` 人工审核。
 - `time_guard`（纯规则，零模型）：未成年人 50/60 分钟、全员 120 分钟、依赖倾向 AI 生成提示；当日已收尾不重复、次日恢复；命中即短路。
 - `crisis` 两级判定（L0/L1/L2，`crisis_basis` 双判定落痕）；L2→`high`→图在 `human_review` 前 `interrupt_before` 中断，人工结论写回后恢复。
 - `supervisor` 唯一写 `next_agent/turn_count/agent_hops`；递归上限防死循环。
-- 模型后端：Qwen3.5-Flash（OpenAI 兼容），密钥/主机经 `.env` 注入（`cloudmaster/config.py`、`cloudmaster/model.py`），**零硬编码密钥/绝对路径**。
+- 模型后端：Qwen3.5-Flash（OpenAI 兼容），密钥/主机经 `.env` 注入（`lightcloudmaster/config.py`、`lightcloudmaster/model.py`），**零硬编码密钥/绝对路径**。
 - Checkpointer：`InMemorySaver` 按 thread 持久化（L2 中断恢复依赖）。
 - ADR-001 先评审后编码；State 字段写入权契约见 `docs/adr/ADR-001-agent-state-and-guard-order.md`。
 

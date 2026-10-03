@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime, timedelta
 
-from cloudmaster.time_guard import (
+from lightcloudmaster.time_guard import (
     AI_DISCLOSURE_MSG,
     DEP_FREQ_THRESHOLD,
     DEPENDENCY_MSG,

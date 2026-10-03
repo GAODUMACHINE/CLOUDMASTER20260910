@@ -18,9 +18,9 @@ from typing import Any
 from langchain_core.messages import HumanMessage
 from langgraph.checkpoint.memory import InMemorySaver
 
-from cloudmaster.config import settings
-from cloudmaster.graph import build_graph
-from cloudmaster.model import create_llm
+from lightcloudmaster.config import settings
+from lightcloudmaster.graph import build_graph
+from lightcloudmaster.model import create_llm
 
 # 倾诉类合成话术（非真实用户数据），覆盖学业/人际/家庭/自我评价/睡眠/未来等常见主题。
 PROMPTS = [
@@ -48,7 +48,7 @@ PROMPTS = [
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="CloudMaster 共情性抽样（人工评分的输入，不评分）")
+    parser = argparse.ArgumentParser(description="LightCloudMaster 共情性抽样（人工评分的输入，不评分）")
     parser.add_argument("--n", type=int, default=20, help="样本条数（默认 20）")
     parser.add_argument("--out", default="docs/eval/empathy-samples.csv", help="CSV 输出路径")
     args = parser.parse_args()

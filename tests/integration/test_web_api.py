@@ -7,10 +7,10 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from cloudmaster.graph import build_graph
-from cloudmaster.mailer import Mailer
-from cloudmaster.profile_store import ProfileStore
-from cloudmaster.web_app import create_app
+from lightcloudmaster.graph import build_graph
+from lightcloudmaster.mailer import Mailer
+from lightcloudmaster.profile_store import ProfileStore
+from lightcloudmaster.web_app import create_app
 
 
 def _client(tmp_path, fake_llm_empathic, expected_token="tok"):
@@ -75,9 +75,9 @@ def test_static_serves_cloud_glass(tmp_path, fake_llm_empathic):
     c, _, _ = _client(tmp_path, fake_llm_empathic)
     r = c.get("/web/cloud-glass/")
     assert r.status_code == 200
-    # 品牌标题（大标题 + 页面 title）锁定为「CloudMaster · 云上高士」
-    assert '<h1 class="brand">CloudMaster<span class="dot"> · </span>云上高士</h1>' in r.text
-    assert "<title>CloudMaster · 云上高士</title>" in r.text
+    # 品牌标题（大标题 + 页面 title）锁定为「LightCloudMaster · 拾光云上」
+    assert '<h1 class="brand">LightCloudMaster<span class="dot"> · </span>拾光云上</h1>' in r.text
+    assert "<title>LightCloudMaster · 拾光云上</title>" in r.text
     # 新增合规/功能入口容器（注册邮箱、自评、隐私保留期、导出、报告确认）
     for dom_id in (
         "email",
@@ -102,7 +102,7 @@ def test_root_redirects_to_user_frontend(tmp_path, fake_llm_empathic):
     assert r.status_code in (301, 302, 307, 308)
     assert r.headers["location"] == "/web/cloud-glass/"
     # 跟随后确实拿到用户前端页面
-    assert "云上高士" in c.get("/").text
+    assert "拾光云上" in c.get("/").text
 
 
 def test_web_root_serves_landing_instead_of_404(tmp_path, fake_llm_empathic):
@@ -127,7 +127,7 @@ def _full_client(tmp_path, llm, token="tok"):
     """带 checkpointer 与临时申诉台账的完整客户端（全部落在 tmp_path，不污染仓库 data/）。"""
     from langgraph.checkpoint.memory import InMemorySaver
 
-    from cloudmaster.appeals import AppealStore
+    from lightcloudmaster.appeals import AppealStore
 
     graph = build_graph(llm, checkpointer=InMemorySaver())
     store = ProfileStore(str(tmp_path / "s.json"))

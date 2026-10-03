@@ -8,7 +8,7 @@
 
 ## 决策
 ### 1. Web 服务（FastAPI）
-- `cloudmaster/web_app.py`：FastAPI 应用，托管：`POST /api/chat`（单轮）、`POST /api/chat/stream`（SSE 流式）、
+- `lightcloudmaster/web_app.py`：FastAPI 应用，托管：`POST /api/chat`（单轮）、`POST /api/chat/stream`（SSE 流式）、
   `POST /api/register`（注册年龄门）、`POST /api/email/confirm`（邮件 HITL 确认/拒绝）。
 - 后端经 `service` 驱动持久化图；一律注入 fake LLM 供测试，禁止触网。
 
@@ -25,7 +25,7 @@
 - `/api/chat/stream`：用 graph.stream 逐 token/消息以 text/event-stream 输出；fake LLM 下确定性。
 
 ### 5. 邮件 HITL（产品级二次确认）
-- `cloudmaster/mailer.py`：Mailer 只有在提供已确认决策(approve+confirm_token)时才会 send；reject → 不 send、
+- `lightcloudmaster/mailer.py`：Mailer 只有在提供已确认决策(approve+confirm_token)时才会 send；reject → 不 send、
   无调用记录（不写审计）。测试一律 fake 通道（记于内存，不真发）。
 
 ## 后果

@@ -5,7 +5,7 @@
 - `scripts/online_eval.py`：在线核验——真实模型的语义层召回与误报（≥95% / ≤10%）。
 
 红线：全部为合成测试语料，不含真实用户数据、真实联络方式或真实热线号码。
-分级依据：《CLOUDMASTER20260910-TEST.md》附录 A 与产品方案表 9。
+分级依据：《LIGHTCLOUDMASTER20260910-TEST.md》附录 A 与产品方案表 9。
 """
 
 from __future__ import annotations

@@ -1,4 +1,4 @@
-/* CloudMaster 人工审核台（值班前端）
+/* LightCloudMaster 人工审核台（值班前端）
    接口：GET /api/review/pending · GET /api/review/{ticket} · POST /api/review/decision
    鉴权（v2.0.0 P5）：令牌改走 Authorization: Bearer 头（不进 URL / 不进访问日志）。
    安全：令牌只放 sessionStorage（不进 localStorage）；所有服务端内容一律 textContent 渲染，

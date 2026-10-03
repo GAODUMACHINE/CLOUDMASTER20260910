@@ -19,8 +19,8 @@ import argparse
 import json
 from typing import Any
 
-from cloudmaster.storage import migrate
-from cloudmaster.storage.db import DEFAULT_BUSINESS_DB
+from lightcloudmaster.storage import migrate
+from lightcloudmaster.storage.db import DEFAULT_BUSINESS_DB
 
 
 def main(argv: list[str] | None = None) -> int:

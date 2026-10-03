@@ -7,7 +7,7 @@
 
 ## 决策
 ### 1. 检索可插拔
-- `cloudmaster/rag/base.py` 定义 `Retriever.retrieve(query) -> list[Document]`。
+- `lightcloudmaster/rag/base.py` 定义 `Retriever.retrieve(query) -> list[Document]`。
 - 生产：v0.4.0 不强制装 FAISS/Milvus（Python3.14 生态受限，ADR-001 已记录）；提供确定性 `StubRetriever`
   走内存语料，测试一律用它；后续可换向量后端，调用面不变。
 ### 2. 引用必附（citations 只增不删，仅 knowledge 写）

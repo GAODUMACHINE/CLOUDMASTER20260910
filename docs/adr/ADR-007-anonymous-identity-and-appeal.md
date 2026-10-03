@@ -2,7 +2,7 @@
 
 - 状态：评审通过（v1.1.0-online-model）
 - 日期：2026-09-11
-- 关联：ADR-002（会话记忆）、ADR-005（注册）、《CLOUDMASTER20260910-TEST.md》TC-REG-006 / TC-PRIV-004 / TC-PRIV-006 / TC-RES-002、《办法》第 19、21 条
+- 关联：ADR-002（会话记忆）、ADR-005（注册）、《LIGHTCLOUDMASTER20260910-TEST.md》TC-REG-006 / TC-PRIV-004 / TC-PRIV-006 / TC-RES-002、《办法》第 19、21 条
 
 ## 上下文
 1. v0.5.0 的 `/api/register` 用 `"anon-" + str(abs(hash(str(age))))` 生成 `profile_key`。

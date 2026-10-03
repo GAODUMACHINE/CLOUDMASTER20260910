@@ -8,7 +8,7 @@
 
 ## 变更内容
 ### 1. 中断态：挂起占位（修「AI 回复 = 用户原话」）
-- `cloudmaster/web_app.py`：新增 `REVIEW_HOLD_REPLY` 与响应字段 `held_for_review`；
+- `lightcloudmaster/web_app.py`：新增 `REVIEW_HOLD_REPLY` 与响应字段 `held_for_review`；
   中断态下 `/api/chat` 返回安全提示占位文案，不再把 `msgs[-1]`（用户那条）当回复。
 - `frontend/common/api.js`：`held_for_review` 时整段立即呈现，跳过打字机动画。
 

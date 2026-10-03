@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from cloudmaster.graph import build_graph
-from cloudmaster.mailer import Mailer
-from cloudmaster.privacy import PrivacyStore
-from cloudmaster.profile_store import ProfileStore
-from cloudmaster.resources import ResourceStore
-from cloudmaster.review_queue import ReviewLedger
-from cloudmaster.web_app import create_app
+from lightcloudmaster.graph import build_graph
+from lightcloudmaster.mailer import Mailer
+from lightcloudmaster.privacy import PrivacyStore
+from lightcloudmaster.profile_store import ProfileStore
+from lightcloudmaster.resources import ResourceStore
+from lightcloudmaster.review_queue import ReviewLedger
+from lightcloudmaster.web_app import create_app
 
 TOKEN = "review-token"
 # v2.0.0 P3：审核令牌改走 Authorization Bearer header（原 ?token= query 已废除）。
