@@ -39,9 +39,9 @@
 CERT_EMAIL=you@example.com bash bootstrap.sh
 ```
 
-脚本幂等，重跑安全。它会：装依赖 → 克隆代码（缺省 `main` 分支，合并前可
-`BRANCH=feature/v2.0.0-rewrite` 覆盖）→ 建 venv 并安装 → 生成 `.env` 骨架 →
-建 `cloudmaster` 系统账号 → 写 systemd 服务与**每日定时器**（09:17 回访交付 +
+脚本幂等，重跑安全。它会：装依赖 → 克隆代码（缺省 `main` = v2.0.0；
+`BRANCH=legacy/v1.4.0` 可部署冻结的老版本）→ 建 venv 并安装 → 生成 `.env` 骨架 →
+建 `cloudmaster` 系统账号 → 写 systemd 服务与**每日定时器**（北京时间 09:17 回访交付 +
 保留期清除）→ 签发 TLS 证书（webroot，自动续期挂钩）→ 安装 nginx 站点配置。
 
 ## 3. 装配后必做的两步

@@ -65,7 +65,9 @@ CERT_EMAIL=你的邮箱@example.com BRANCH=feature/v2.0.0-rewrite bash bootstrap
 ```
 
 说明：
-- `BRANCH=feature/v2.0.0-rewrite` 在分支合并进 main **之前**必须带；合并后可省略。
+- `BRANCH` 参数**现在可以省略**——main 已是 v2.0.0（2026-10-03 起）。要部署**老版本
+  v1.4.0**（回顾/对照用）：`BRANCH=legacy/v1.4.0 bash bootstrap.sh`（老版本冻结在
+  `legacy/v1.4.0` 分支 + `v1.4.0` 标签，GitHub 页面左上角分支切换器可随时浏览）。
 - 脚本会自动：装 git/nginx/certbot → 装 Python 依赖 → 生成 `.env` 骨架 → 创建
   `cloudmaster` 系统账号 → 注册 systemd 服务与每日定时任务 → 签发 TLS 证书 →
   配好 nginx。任何一步报错，**修掉原因后直接重跑同一条命令**（幂等）。
