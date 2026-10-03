@@ -60,8 +60,8 @@ ssh root@<服务器IP>
 git clone https://github.com/GAODUMACHINE/CLOUDMASTER20260910.git /opt/cloudmaster
 cd /opt/cloudmaster/deploy
 
-# 4.2 一键装配（重复执行安全）
-CERT_EMAIL=你的邮箱@example.com BRANCH=feature/v2.0.0-rewrite bash bootstrap.sh
+# 4.2 一键装配（重复执行安全；CERT_EMAIL 是证书通知邮箱，用你常用的真实邮箱）
+CERT_EMAIL=你的邮箱@example.com bash bootstrap.sh
 ```
 
 说明：
