@@ -1,0 +1,336 @@
+/* ==========================================================================
+   Cloud Glass v3 · 云朵玻璃「晨雾应用壳」
+   --------------------------------------------------------------------------
+   设计立场：云朵玻璃是"材质"而不是"造型"——只用在顶栏、输入坞、AI 气泡
+   这类功能性磨砂条上；聊天直接铺在天空上，表单是平贴的窄栏纸面。
+   去 AI 感纪律：
+   1) 拒绝"居中悬浮玻璃大卡片"式营销页骨架，改为真实应用的信息架构；
+   2) 不用宽字距标语、渐变、光晕；按钮小而实色，发丝线承担全部结构；
+   3) 衬线仅用于品牌与标题（Georgia/宋体混排），正文克制、行高放松。
+   ========================================================================== */
+
+/* 公共令牌见 common/tokens.css（v2.0.0 P5 统一配色）；本页 :root 只做别名映射，
+   让既有规则零改动地引用同一套取值——改色只改 tokens.css 一处。 */
+:root{
+  /* 天空（低饱和晨雾） */
+  --sky-hi:var(--cm-bg-hi); --sky-mid:var(--cm-bg-mid); --sky-low:var(--cm-bg-low);
+  /* 玻璃与纸 */
+  --glass:var(--cm-glass);
+  --paper:var(--cm-paper);
+  --edge-light:var(--cm-edge-light);
+  --hairline:var(--cm-hairline);
+  /* 墨色文字（对纸底均 ≥ AA） */
+  --ink:var(--cm-ink); --ink-2:var(--cm-ink-2); --muted:var(--cm-muted); --faint:var(--cm-faint);
+  /* 单一强调：墨蓝 */
+  --accent:var(--cm-primary); --accent-deep:var(--cm-primary-deep); --user-bubble:var(--cm-bubble-user);
+  --ring:var(--cm-ring);
+  /* 状态色（去饱和） */
+  --good:var(--cm-good); --danger:var(--cm-danger); --warm-line:var(--cm-warm);
+  /* 形状与间距（三档圆角即公共三档；无页面私有间距体系） */
+  --r-lg:var(--cm-radius-lg); --r-md:var(--cm-radius-md); --r-sm:var(--cm-radius-sm);
+  --serif:var(--cm-serif); --sans:var(--cm-sans);
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; overflow:hidden; color:var(--ink); font-family:var(--sans);
+  -webkit-font-smoothing:antialiased;
+  background:linear-gradient(180deg,var(--sky-hi) 0%,var(--sky-mid) 55%,var(--sky-low) 100%);
+}
+
+/* 云层：两团极缓漂移的雾白 */
+body::before{
+  content:""; position:fixed; inset:-6% -4%; z-index:0; pointer-events:none;
+  background:
+    radial-gradient(52rem 24rem at 82% 8%, rgba(255,255,255,.8), rgba(255,255,255,0) 62%),
+    radial-gradient(46rem 20rem at 8% 30%, rgba(255,255,255,.5), rgba(255,255,255,0) 58%),
+    radial-gradient(66rem 26rem at 50% 112%, rgba(255,255,255,.9), rgba(255,255,255,0) 60%);
+  animation:cloud-drift 140s ease-in-out infinite alternate;
+}
+@keyframes cloud-drift{from{transform:translateX(-1.4%)}to{transform:translateX(1.4%)}}
+
+/* 纸感颗粒：极细噪点盖全页 */
+body::after{
+  content:""; position:fixed; inset:0; z-index:90; pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='260' height='260' filter='url(%23n)' opacity='0.045'/%3E%3C/svg%3E");
+}
+
+.hidden{display:none!important}
+::selection{background:var(--accent); color:#fff}
+
+/* ---- 应用壳：像一栏真正的"窗"，而不是悬浮卡片 ---- */
+.shell{
+  position:relative; z-index:1; height:100%; max-width:720px; margin:0 auto;
+  display:flex; flex-direction:column;
+  border-left:1px solid var(--hairline); border-right:1px solid var(--hairline);
+  background:linear-gradient(180deg, rgba(255,255,255,.24), rgba(255,255,255,.08));
+}
+
+/* ---- 顶栏：功能性磨砂条 ---- */
+.appbar{
+  flex:none; display:flex; align-items:center; gap:10px; padding:10px 18px;
+  background:var(--glass);
+  -webkit-backdrop-filter:blur(14px) saturate(115%); backdrop-filter:blur(14px) saturate(115%);
+  border-bottom:1px solid var(--hairline);
+}
+.mark{width:20px; height:20px; color:var(--accent); flex:none}
+.brand{font-family:var(--serif); font-size:16px; font-weight:600; color:var(--ink); margin:0; white-space:nowrap; letter-spacing:.01em}
+.brand .dot{color:var(--accent); font-weight:400}
+.ai-note{margin:0 0 0 auto; font-size:11.5px; color:var(--faint); line-height:1.4; text-align:right}
+body[data-minor="true"] .ai-note::after{content:" · 未成年模式"; color:var(--good)}
+
+main{flex:1; min-height:0; display:flex; flex-direction:column}
+.screen{flex:1; min-height:0}
+#chatPanel{display:flex; flex-direction:column}
+#registerPanel,#settingsPanel{overflow-y:auto; padding:28px 18px 40px}
+#registerPanel{display:flex; flex-direction:column}
+#registerPanel::-webkit-scrollbar,#settingsPanel::-webkit-scrollbar{width:9px}
+#registerPanel::-webkit-scrollbar-thumb,#settingsPanel::-webkit-scrollbar-thumb{background:rgba(46,90,126,.24); border-radius:8px; border:2px solid transparent; background-clip:padding-box}
+
+/* ---- 纸面：平贴的表单窄栏，玻璃只作底衬 ---- */
+.sheet{
+  max-width:560px; margin:0 auto; width:100%;
+  background:var(--paper);
+  -webkit-backdrop-filter:blur(14px) saturate(115%); backdrop-filter:blur(14px) saturate(115%);
+  border:1px solid var(--hairline); border-radius:var(--r-lg);
+  box-shadow:inset 0 1px 0 var(--edge-light), 0 8px 24px rgba(46,74,99,.07);
+  padding:22px 24px 18px;
+}
+.sheet-narrow{max-width:440px; margin:auto}
+
+.kicker{font-size:13px; color:var(--muted); margin:0 0 8px}
+h2{
+  font-family:var(--serif); font-size:18.5px; font-weight:600; color:var(--ink);
+  margin:0 0 12px; padding-bottom:10px; border-bottom:1px solid var(--hairline); letter-spacing:.01em;
+}
+.sheet-head{display:flex; align-items:baseline; justify-content:space-between; gap:12px; border-bottom:1px solid var(--hairline); margin-bottom:6px}
+.sheet-head h2{border:0; padding:0; margin:0}
+
+/* ---- 表单 ---- */
+.field{display:block; margin:16px 0 12px}
+.field span{display:block; font-size:12.5px; color:var(--muted); margin-bottom:6px}
+.field input{
+  width:100%; height:42px; padding:0 13px; border-radius:var(--r-md);
+  border:1px solid rgba(34,56,74,.22); background:rgba(255,255,255,.9); color:var(--ink); font-size:15px;
+  transition:border-color .2s, box-shadow .2s;
+}
+.field input::placeholder{color:var(--faint)}
+.field input:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--ring)}
+.guardian-row{margin:8px 0 12px; font-size:13.5px; color:var(--ink-2); display:flex; align-items:flex-start; gap:8px; line-height:1.6}
+.guardian-row input{accent-color:var(--accent); margin-top:3px}
+.privacy{font-size:12.5px; color:var(--muted); line-height:1.7}
+.privacy.micro{font-size:11px; color:var(--faint); margin:0}
+.reject{color:var(--danger); font-size:13.5px; margin:8px 0; font-weight:500}
+.error{color:var(--danger); font-size:13px; min-height:1.2em; margin:10px 0 0}
+.smallprint{font-size:11px; color:var(--faint); line-height:1.7; margin:16px 0 0; padding-top:10px; border-top:1px solid var(--hairline)}
+
+/* ---- 按钮：小而实色，无戏法 ---- */
+.primary{
+  height:42px; width:100%; padding:0 20px; border:0; border-radius:var(--r-sm); cursor:pointer;
+  font-size:14.5px; font-weight:600; color:var(--cm-on-primary); background:var(--accent);
+  box-shadow:0 1px 2px rgba(34,56,74,.22);
+  transition:background-color .2s;
+}
+.primary:not(:disabled):hover{background:var(--accent-deep)}
+.primary:not(:disabled):active{background:#204461}
+.primary:disabled{opacity:.45; cursor:not-allowed}
+.primary:focus-visible{outline:2px solid var(--accent-deep); outline-offset:2px}
+.primary.compact{width:auto}
+
+.linklike{
+  background:none; border:0; padding:2px 0; cursor:pointer;
+  font-size:12.5px; color:var(--accent); font-family:inherit;
+}
+.linklike:hover{text-decoration:underline; text-underline-offset:3px}
+.linklike:focus-visible{outline:2px solid var(--accent-deep); outline-offset:2px; border-radius:2px}
+
+/* 幽灵钮（报告预览/退订开关等次级动作）：白瓷面 + 发丝描边，与 danger 同族但中性 */
+.ghost{
+  height:38px; padding:0 16px; border-radius:var(--r-sm); cursor:pointer;
+  font-size:13px; font-weight:600; color:var(--ink-2); font-family:inherit;
+  background:rgba(255,255,255,.55); border:1px solid rgba(34,56,74,.22);
+  transition:background-color .2s, border-color .2s;
+}
+.ghost:not(:disabled):hover{background:rgba(255,255,255,.85); border-color:rgba(34,56,74,.34)}
+.ghost:disabled{opacity:.45; cursor:not-allowed}
+.ghost:focus-visible{outline:2px solid var(--accent-deep); outline-offset:2px}
+.ghost.compact{width:auto}
+
+.danger{
+  height:38px; padding:0 16px; border-radius:var(--r-sm); cursor:pointer;
+  font-size:13.5px; font-weight:600; color:var(--danger);
+  background:rgba(255,255,255,.55); border:1px solid rgba(143,68,47,.4);
+  transition:background-color .2s;
+}
+.danger:hover{background:rgba(143,68,47,.08)}
+.danger:focus-visible{outline:2px solid var(--danger); outline-offset:2px}
+
+/* ---- 对话：消息铺在天空上，玻璃只留给输入坞 ---- */
+.messages{
+  flex:1; min-height:0; overflow-y:auto; padding:18px 16px 4px;
+  display:flex; flex-direction:column; gap:8px; scroll-behavior:smooth;
+}
+.messages::-webkit-scrollbar{width:9px}
+.messages::-webkit-scrollbar-thumb{background:rgba(46,90,126,.24); border-radius:8px; border:2px solid transparent; background-clip:padding-box}
+.messages::-webkit-scrollbar-track{background:transparent}
+.bubble{
+  max-width:78%; padding:9px 13px; border-radius:12px; line-height:1.7;
+  white-space:pre-wrap; word-break:break-word; font-size:14.5px;
+  box-shadow:0 1px 2px rgba(34,56,74,.05);
+}
+.bubble.user{
+  align-self:flex-end; color:var(--cm-on-primary); background:var(--user-bubble);
+  border-bottom-right-radius:4px; margin-left:14%;
+}
+.bubble.ai{
+  align-self:flex-start; color:var(--ink); background:rgba(255,255,255,.82);
+  border:1px solid var(--hairline); border-bottom-left-radius:4px; margin-right:14%;
+}
+/* 系统通知气泡（v2.0.0 P5 终态 notices）：整条通栏的安静提示，弱于危机横幅 */
+.bubble.ai.notice{
+  align-self:stretch; max-width:none; margin-right:0;
+  background:rgba(46,90,126,.06); border:1px dashed rgba(46,90,126,.35);
+  color:var(--ink-2); font-size:13px; border-radius:var(--r-md);
+}
+.typing{
+  flex:none; color:var(--muted); font-size:12px; min-height:20px; padding:2px 18px 4px;
+  opacity:0; transition:opacity .25s; display:flex; align-items:center; gap:6px;
+}
+.typing.show{opacity:1}
+.typing .td{width:4px; height:4px; border-radius:50%; background:var(--muted); opacity:.4; animation:tdp 1.2s infinite}
+.typing .td:nth-child(2){animation-delay:.2s}
+.typing .td:nth-child(3){animation-delay:.4s}
+@keyframes tdp{0%,60%,100%{opacity:.25; transform:translateY(0)}30%{opacity:1; transform:translateY(-2px)}}
+
+/* ---- 输入坞：磨砂条 + 内嵌发送钮 ---- */
+.composer{
+  flex:none; padding:10px 14px 8px; background:var(--glass);
+  -webkit-backdrop-filter:blur(14px) saturate(115%); backdrop-filter:blur(14px) saturate(115%);
+  border-top:1px solid var(--hairline);
+}
+.input-row{display:flex; gap:8px}
+.input-row input{
+  flex:1; height:42px; padding:0 13px; border-radius:var(--r-md);
+  border:1px solid rgba(34,56,74,.2); background:rgba(255,255,255,.92); color:var(--ink); font-size:14.5px;
+  transition:border-color .2s, box-shadow .2s;
+}
+.input-row input::placeholder{color:var(--faint)}
+.input-row input:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--ring)}
+.send{
+  flex:none; width:42px; height:42px; border:0; border-radius:var(--r-md); cursor:pointer;
+  background:var(--accent); color:var(--cm-on-primary);
+  display:flex; align-items:center; justify-content:center;
+  transition:background-color .2s;
+}
+.send svg{width:16px; height:16px}
+.send:not(:disabled):hover{background:var(--accent-deep)}
+.send:disabled{opacity:.45; cursor:not-allowed}
+.send:focus-visible{outline:2px solid var(--accent-deep); outline-offset:2px}
+.composer-meta{display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top:6px}
+.composer-meta .privacy{min-width:0}
+
+/* ---- 危机通告：暖纸条 + 陶土左线 ---- */
+.crisis{
+  flex:none; margin:12px 16px 0; padding:10px 14px;
+  background:rgba(255,250,243,.92);
+  border:1px solid rgba(164,90,55,.3); border-left:3px solid var(--warm-line);
+  border-radius:var(--r-md);
+}
+.crisis h3{margin:0 0 3px; font-size:13.5px; color:#6E3A24; font-weight:600}
+.crisis p{margin:0; font-size:13px; color:#7A564A; line-height:1.6}
+
+/* ---- 设置分节：发丝线 + 小节标题 ---- */
+.block{padding:14px 0 16px; border-bottom:1px solid var(--hairline)}
+.sheet-head + .block{padding-top:10px}
+.block:last-of-type{border-bottom:0}
+.block h3{margin:0 0 6px; font-size:12.5px; color:var(--ink-2); font-weight:600; letter-spacing:.06em}
+.block .privacy{margin:0 0 8px}
+.res-list{margin:0; padding:0; list-style:none; font-size:13px; color:var(--muted); line-height:1.7}
+.res-list li{position:relative; padding-left:1em; margin-bottom:5px}
+.res-list li::before{content:"·"; position:absolute; left:.1em; color:var(--accent); font-weight:700}
+.res-list strong{color:var(--ink-2); font-weight:600}
+.field.small{margin:10px 0}
+.field.small>span,.field.small{font-size:12.5px}
+.field select,.field textarea{
+  width:100%; padding:10px 12px; border-radius:var(--r-md);
+  border:1px solid rgba(34,56,74,.22); background:rgba(255,255,255,.9); color:var(--ink);
+  font-size:13.5px; font-family:inherit;
+}
+.field textarea{resize:vertical; line-height:1.6}
+.field select:focus,.field textarea:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--ring)}
+#appealMsg,#deleteMsg{margin-top:8px}
+
+/* ---- 情绪自评：纸面条目 + 结果区间（不呈现分数） ---- */
+.assessment-form{margin-top:10px}
+.assessment-form .assess-item{margin-bottom:10px}
+.assessment-form .assess-q{display:block; font-size:12.5px; color:var(--muted); margin-bottom:5px}
+.assessment-form select{
+  width:100%; padding:9px 11px; border-radius:var(--r-md);
+  border:1px solid rgba(34,56,74,.22); background:rgba(255,255,255,.9); color:var(--ink);
+  font-size:13px; font-family:inherit;
+}
+.assessment-form select:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--ring)}
+.assessment-result{
+  margin-top:10px; padding:12px 14px; border-radius:var(--r-md);
+  background:var(--paper); border:1px solid var(--hairline); border-left:2px solid var(--accent);
+  font-size:13px; line-height:1.7; color:var(--ink-2);
+}
+.assessment-result .band{display:block; font-family:var(--serif); font-size:14px; color:var(--ink); margin-bottom:4px}
+.assessment-result .disclaimer{margin:8px 0 0; font-size:12px; color:var(--faint)}
+.assessment-result.urgent{border-left-color:var(--warm-line); background:rgba(180,102,63,.06)}
+.assessment-result .urgent-note{margin:8px 0 0; color:var(--danger)}
+.assessment-result .entry-note{margin:8px 0 0; font-size:12.5px; color:var(--muted)}
+#retentionMsg,#exportMsg{margin-top:8px}
+#exportBtn{margin-top:4px}
+.hotline-tel{
+  display:inline-block; margin-left:.35em; padding:0 .4em; border-radius:var(--r-sm);
+  background:rgba(46,90,126,.08); color:var(--accent); font-variant-numeric:tabular-nums;
+}
+
+/* ---- 疏导报告预览：纸面窄栏，等宽正文便于核对 ---- */
+.report-preview{
+  margin:10px 0 0; padding:12px 14px; max-height:280px; overflow:auto;
+  border:1px solid var(--hairline); border-left:2px solid var(--accent); border-radius:var(--r-md);
+  background:var(--paper); color:var(--ink-2);
+  font-family:var(--sans); font-size:12.5px; line-height:1.75;
+  white-space:pre-wrap; word-break:break-word;
+}
+#reportMsg{margin-top:8px}
+#reportSendBtn{margin-top:8px}
+
+/* ---- AI 披露弹窗：白瓷对话卡 ---- */
+.disclosure{
+  position:fixed; inset:0; z-index:60; display:flex; align-items:center; justify-content:center;
+  padding:20px; background:rgba(44,68,87,.28);
+  -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);
+}
+.disclosure .dlg{
+  max-width:400px; width:100%; border-radius:var(--r-lg); padding:22px 24px 18px;
+  background:rgba(255,255,255,.96);
+  border:1px solid var(--hairline);
+  box-shadow:0 20px 48px rgba(24,42,58,.24);
+}
+.disclosure h2{border:0; padding:0; margin:0 0 10px; font-size:18px}
+.disclosure p{line-height:1.8; font-size:14px; color:var(--ink-2); margin:0 0 16px}
+.disclosure .primary{display:block; margin-left:auto}
+
+/* ---- 响应式 ---- */
+@media (max-width:640px){
+  .appbar{flex-wrap:wrap; row-gap:1px; padding:8px 14px}
+  .brand{font-size:14.5px}
+  .ai-note{flex-basis:100%; text-align:left; font-size:11px}
+  #registerPanel,#settingsPanel{padding:18px 12px 32px}
+  .sheet{padding:18px 16px 14px}
+  .messages{padding:14px 12px 4px}
+  .bubble{max-width:86%}
+  .bubble.user{margin-left:10%}
+  .bubble.ai{margin-right:10%}
+  .crisis{margin:10px 12px 0}
+  .composer{padding:8px 10px 8px}
+  .composer-meta{flex-wrap:wrap; row-gap:2px}
+}
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation:none!important; transition:none!important; scroll-behavior:auto!important}
+  .typing .td{animation:none}
+}
