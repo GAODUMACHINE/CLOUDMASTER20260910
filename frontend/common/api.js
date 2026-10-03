@@ -330,14 +330,18 @@
       send.disabled = true;
       setTyping(true);
       addMsg(text, 'user');
+      var cm = $('chatMessages');
       var bubble = el('div', 'bubble ai typing');
-      $('chatMessages').appendChild(bubble);
+      bubble.setAttribute('aria-busy', 'true'); // 流式期间读屏不逐 token 重读，终态由 finally 摘除
+      cm.setAttribute('aria-busy', 'true'); // aria-busy 的规范挂点是 live region 容器本身
+      cm.appendChild(bubble);
       streamChat(text, bubble).
       catch(function () { return legacyChat(text, bubble); }).
-      finally(function () { send.disabled = false; });
+      finally(function () { bubble.removeAttribute('aria-busy'); cm.removeAttribute('aria-busy'); send.disabled = false; });
     }
     send.addEventListener('click', go);
-    input.addEventListener('keydown', function (e) { if (e.key === 'Enter') go(); });
+    // 输入法组合态（选词/翻页）的 Enter 只确认候选，不发送
+    input.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.isComposing) go(); });
   }
 
   /* ---- 危机横幅（不放任何真实热线号码） ---- */
@@ -348,6 +352,7 @@
     state.ticket = ticket;
     var b = $('crisisBanner');
     if (!b) { return; }
+    b.dataset.risk = state.risk; // 供 CSS 分级：low=安抚绿线 / high=警戒陶土（仅 data 属性，不改绑定）
     if (state.risk === 'high') {
       b.classList.remove('hidden');
       $('crisisTitle').textContent = '已升级至人工审核';

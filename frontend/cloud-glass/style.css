@@ -1,51 +1,79 @@
 /* ==========================================================================
-   Cloud Glass v3 · 云朵玻璃「晨雾应用壳」
+   Cloud Glass v4 · 云朵玻璃「拾光晨窗」
    --------------------------------------------------------------------------
-   设计立场：云朵玻璃是"材质"而不是"造型"——只用在顶栏、输入坞、AI 气泡
+   设计立场不变：云朵玻璃是"材质"而不是"造型"——只用在顶栏、输入坞、AI 气泡
    这类功能性磨砂条上；聊天直接铺在天空上，表单是平贴的窄栏纸面。
-   去 AI 感纪律：
-   1) 拒绝"居中悬浮玻璃大卡片"式营销页骨架，改为真实应用的信息架构；
-   2) 不用宽字距标语、渐变、光晕；按钮小而实色，发丝线承担全部结构；
-   3) 衬线仅用于品牌与标题（Georgia/宋体混排），正文克制、行高放松。
+   v4 在 v3 骨架上重做底层系统（75 项审计发现收敛而来）：
+   1) 排印：5 档整数阶 rem 化（12/13/14.5/16/19），微文案 12px 下限，
+      衬线一律 400 字重（SimSun 无 Bold，600 会伪粗发糊），数字 tabular-nums；
+   2) 光与材质：全页统一"光从左上来"——左上暖晨光（拾光之意）、云团 vw/vh
+      半径（移动端不再糊成一片）、底部只留薄霭不发光；玻璃面补上缘高光
+      （--edge-light），AI 气泡真磨砂（blur），纸面转暖纸与玻璃拉开色温差；
+   3) 对话生命感：气泡入场、同人 4px/换轮 14px 的轮次节奏、待响应槽有形、
+      指示器 ID 收窄（不再误伤流式占位气泡）、独白时一句安静陪伴的余白；
+   4) 安全分级：危机横幅 data-risk 分级（low=安抚绿线/high=警戒陶土），
+      软入场不惊吓，标题升 h2、工单号等宽数字；
+   5) 设置 IA：sheet-head 吸顶常驻"返回对话"，低频分节 details 原生折叠，
+      资源空态诚实告知，操作回执升格为可读消息槽；
+   6) 可达性：输入面边框 ≥3:1（按钮以文字标识自身，不依赖边界对比）、
+      焦点统一 2px outline 语言、键盘/读屏
+      （role=alert/status 见 index.html）、触控目标 ≥24px、dvh 视口修复；
+   7) 纪律：裸值全部收编为页面别名，reduce-motion 定向退化（色彩过渡保留）。
+   栏宽依据：720-32=688px 内容宽 × 78% 气泡 ≈ 537px ≈ 37 字/行（14.5px），
+   恰在中文舒适区上限——勿加宽。
    ========================================================================== */
 
-/* 公共令牌见 common/tokens.css（v2.0.0 P5 统一配色）；本页 :root 只做别名映射，
-   让既有规则零改动地引用同一套取值——改色只改 tokens.css 一处。 */
+/* 公共令牌见 common/tokens.css（v2.0.0 P5 统一配色）；本页 :root 做别名映射
+   + 页面私有系统（红线允许：间距/线条/暖纸/危机色只在本页消费）。 */
 :root{
   /* 天空（低饱和晨雾） */
   --sky-hi:var(--cm-bg-hi); --sky-mid:var(--cm-bg-mid); --sky-low:var(--cm-bg-low);
-  /* 玻璃与纸 */
+  /* 玻璃与纸：两种材质靠色温与表面处理区分，不再只差 10 个百分点透明度 */
   --glass:var(--cm-glass);
-  --paper:var(--cm-paper);
+  --paper-warm:rgba(255,253,248,.84);   /* 纸=更实、微暖、低 blur */
   --edge-light:var(--cm-edge-light);
   --hairline:var(--cm-hairline);
+  /* 线条阶梯：发丝线只作分隔；控件边界独立一档（对输入面 ≥3:1，WCAG 1.4.11） */
+  --line-strong:rgba(34,56,74,.6);
+  --line-strong-hover:rgba(34,56,74,.72);
+  --line-soft:rgba(34,56,74,.45);
   /* 墨色文字（对纸底均 ≥ AA） */
   --ink:var(--cm-ink); --ink-2:var(--cm-ink-2); --muted:var(--cm-muted); --faint:var(--cm-faint);
   /* 单一强调：墨蓝 */
   --accent:var(--cm-primary); --accent-deep:var(--cm-primary-deep); --user-bubble:var(--cm-bubble-user);
-  --ring:var(--cm-ring);
   /* 状态色（去饱和） */
   --good:var(--cm-good); --danger:var(--cm-danger); --warm-line:var(--cm-warm);
-  /* 形状与间距（三档圆角即公共三档；无页面私有间距体系） */
+  /* 危机横幅（收编原裸值；high=暖纸陶土 / low=安抚绿线） */
+  --crisis-bg:rgba(255,250,243,.92);
+  --crisis-ink:#6E3A24; --crisis-ink-2:#7A564A; --crisis-line:rgba(164,90,55,.3);
+  /* 阴影：引用令牌 + 接触阴影一档（同源墨蓝，无黑色通用款） */
+  --shadow:var(--cm-shadow); --shadow-pop:var(--cm-shadow-pop);
+  --shadow-contact:0 1px 2px rgba(34,56,74,.2);
+  /* 形状与间距（公共三档圆角；--inset 是"窗"内水平内距的统一网格） */
   --r-lg:var(--cm-radius-lg); --r-md:var(--cm-radius-md); --r-sm:var(--cm-radius-sm);
+  --inset:16px;
   --serif:var(--cm-serif); --sans:var(--cm-sans);
 }
 
 *{box-sizing:border-box}
+html{font-size:100%}
 html,body{height:100%}
 body{
   margin:0; overflow:hidden; color:var(--ink); font-family:var(--sans);
+  font-size:.8125rem; line-height:1.6;
   -webkit-font-smoothing:antialiased;
   background:linear-gradient(180deg,var(--sky-hi) 0%,var(--sky-mid) 55%,var(--sky-low) 100%);
 }
 
-/* 云层：两团极缓漂移的雾白 */
+/* 云层与晨光：光从左上来（暖），云最亮在右上，底部只留薄霭——明度逻辑
+   全页统一为"光从上来"，半径用视口单位，移动端不再糊成一块奶白。 */
 body::before{
   content:""; position:fixed; inset:-6% -4%; z-index:0; pointer-events:none;
   background:
-    radial-gradient(52rem 24rem at 82% 8%, rgba(255,255,255,.8), rgba(255,255,255,0) 62%),
-    radial-gradient(46rem 20rem at 8% 30%, rgba(255,255,255,.5), rgba(255,255,255,0) 58%),
-    radial-gradient(66rem 26rem at 50% 112%, rgba(255,255,255,.9), rgba(255,255,255,0) 60%);
+    radial-gradient(58vw 30vh at 18% -6%, rgba(255,214,170,.14), rgba(255,214,170,0) 60%),
+    radial-gradient(50vw 26vh at 82% 6%, rgba(255,255,255,.78), rgba(255,255,255,0) 62%),
+    radial-gradient(44vw 22vh at 6% 32%, rgba(248,251,253,.55), rgba(248,251,253,0) 58%),
+    radial-gradient(64vw 24vh at 50% 116%, rgba(240,246,250,.45), rgba(240,246,250,0) 60%);
   animation:cloud-drift 140s ease-in-out infinite alternate;
 }
 @keyframes cloud-drift{from{transform:translateX(-1.4%)}to{transform:translateX(1.4%)}}
@@ -59,278 +87,444 @@ body::after{
 .hidden{display:none!important}
 ::selection{background:var(--accent); color:#fff}
 
-/* ---- 应用壳：像一栏真正的"窗"，而不是悬浮卡片 ---- */
+/* ---- 应用壳：像一栏真正的"窗"。dvh 修复移动端地址栏遮挡输入坞 ---- */
 .shell{
-  position:relative; z-index:1; height:100%; max-width:720px; margin:0 auto;
+  position:relative; z-index:1; height:100vh; max-width:720px; margin:0 auto;
   display:flex; flex-direction:column;
   border-left:1px solid var(--hairline); border-right:1px solid var(--hairline);
   background:linear-gradient(180deg, rgba(255,255,255,.24), rgba(255,255,255,.08));
 }
+@supports (height:100dvh){.shell{height:100dvh}}
 
-/* ---- 顶栏：功能性磨砂条 ---- */
+/* ---- 顶栏：功能性磨砂条，补上缘高光让"玻璃"成立 ---- */
 .appbar{
-  flex:none; display:flex; align-items:center; gap:10px; padding:10px 18px;
+  flex:none; display:flex; align-items:center; gap:10px; padding:10px var(--inset);
   background:var(--glass);
   -webkit-backdrop-filter:blur(14px) saturate(115%); backdrop-filter:blur(14px) saturate(115%);
   border-bottom:1px solid var(--hairline);
+  box-shadow:inset 0 1px 0 var(--edge-light);
 }
 .mark{width:20px; height:20px; color:var(--accent); flex:none}
-.brand{font-family:var(--serif); font-size:16px; font-weight:600; color:var(--ink); margin:0; white-space:nowrap; letter-spacing:.01em}
-.brand .dot{color:var(--accent); font-weight:400}
-.ai-note{margin:0 0 0 auto; font-size:11.5px; color:var(--faint); line-height:1.4; text-align:right}
-body[data-minor="true"] .ai-note::after{content:" · 未成年模式"; color:var(--good)}
+.brand{font-family:var(--serif); font-size:1rem; font-weight:400; color:var(--ink); margin:0; white-space:nowrap; letter-spacing:.01em}
+.brand .dot{color:var(--accent); margin:0 1px}
+.ai-note{margin:0 0 0 auto; font-size:.75rem; color:var(--muted); line-height:1.5; text-align:right}
+body[data-minor="true"] .ai-note::after{content:" · 未成年模式"; color:var(--good); display:inline-block; margin-left:6px}
 
 main{flex:1; min-height:0; display:flex; flex-direction:column}
 .screen{flex:1; min-height:0}
+/* 三屏切换的入场方向（display:none→可见时动画自然从头播）；退场交给浏览器即时移除 */
+.screen:not(.hidden){animation:screen-in .32s cubic-bezier(.22,.61,.36,1)}
+@keyframes screen-in{from{opacity:0; transform:translateY(10px)}to{opacity:1; transform:none}}
 #chatPanel{display:flex; flex-direction:column}
 #registerPanel,#settingsPanel{overflow-y:auto; padding:28px 18px 40px}
+#settingsPanel{padding:12px 18px 40px}
 #registerPanel{display:flex; flex-direction:column}
 #registerPanel::-webkit-scrollbar,#settingsPanel::-webkit-scrollbar{width:9px}
 #registerPanel::-webkit-scrollbar-thumb,#settingsPanel::-webkit-scrollbar-thumb{background:rgba(46,90,126,.24); border-radius:8px; border:2px solid transparent; background-clip:padding-box}
 
-/* ---- 纸面：平贴的表单窄栏，玻璃只作底衬 ---- */
+/* ---- 纸面：平贴的表单窄栏（暖纸：更实、微暖、低 blur，与玻璃拉开材质差） ---- */
 .sheet{
   max-width:560px; margin:0 auto; width:100%;
-  background:var(--paper);
-  -webkit-backdrop-filter:blur(14px) saturate(115%); backdrop-filter:blur(14px) saturate(115%);
+  background:var(--paper-warm);
+  -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px);
   border:1px solid var(--hairline); border-radius:var(--r-lg);
-  box-shadow:inset 0 1px 0 var(--edge-light), 0 8px 24px rgba(46,74,99,.07);
+  box-shadow:inset 0 1px 0 var(--edge-light), var(--shadow);
   padding:22px 24px 18px;
 }
 .sheet-narrow{max-width:440px; margin:auto}
-
-.kicker{font-size:13px; color:var(--muted); margin:0 0 8px}
-h2{
-  font-family:var(--serif); font-size:18.5px; font-weight:600; color:var(--ink);
-  margin:0 0 12px; padding-bottom:10px; border-bottom:1px solid var(--hairline); letter-spacing:.01em;
+/* 设置页：sheet-head 吸顶常驻"返回对话"，暖纸底+blur 盖住滚过的内容 */
+#settingsPanel .sheet{padding:0 24px 18px}
+.sheet-head{
+  position:sticky; top:0; z-index:2;
+  margin:0 -24px; padding:14px 24px 10px;
+  /* 出血背景须自带卡片顶角圆弧（.sheet 无 overflow:hidden，圆角不裁剪子元素） */
+  border-radius:calc(var(--r-lg) - 1px) calc(var(--r-lg) - 1px) 0 0;
+  background:rgba(255,253,248,.92);
+  -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--hairline);
+  display:flex; align-items:baseline; justify-content:space-between; gap:12px;
 }
-.sheet-head{display:flex; align-items:baseline; justify-content:space-between; gap:12px; border-bottom:1px solid var(--hairline); margin-bottom:6px}
 .sheet-head h2{border:0; padding:0; margin:0}
 
-/* ---- 表单 ---- */
-.field{display:block; margin:16px 0 12px}
-.field span{display:block; font-size:12.5px; color:var(--muted); margin-bottom:6px}
+.kicker{font-size:.8125rem; color:var(--muted); margin:0 0 8px; letter-spacing:.02em}
+h2{
+  font-family:var(--serif); font-size:1.1875rem; font-weight:400; color:var(--ink);
+  margin:0 0 12px; padding-bottom:10px; border-bottom:1px solid var(--hairline);
+  letter-spacing:.01em; line-height:1.45; text-wrap:balance;
+}
+/* 注册页的匿名说明是"上下文注"：左线标记与底部披露行拉开维度 */
+#registerPanel .privacy{border-left:2px solid var(--hairline); padding-left:10px}
+
+/* ---- 表单：标签样式上本体（label 内是裸文本节点，.field span 永不命中） ---- */
+.field{display:flex; flex-direction:column; gap:6px; margin:16px 0 12px; font-size:.8125rem; color:var(--muted); line-height:1.5}
+.field.small{margin:12px 0}
 .field input{
-  width:100%; height:42px; padding:0 13px; border-radius:var(--r-md);
-  border:1px solid rgba(34,56,74,.22); background:rgba(255,255,255,.9); color:var(--ink); font-size:15px;
-  transition:border-color .2s, box-shadow .2s;
+  width:100%; height:44px; padding:0 13px; border-radius:var(--r-md);
+  border:1px solid var(--line-strong); background:rgba(255,255,255,.9); color:var(--ink);
+  font-size:.90625rem; font-family:inherit;
+  transition:border-color .2s;
 }
 .field input::placeholder{color:var(--faint)}
-.field input:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--ring)}
-.guardian-row{margin:8px 0 12px; font-size:13.5px; color:var(--ink-2); display:flex; align-items:flex-start; gap:8px; line-height:1.6}
+.field select,.field textarea{
+  width:100%; padding:10px 12px; border-radius:var(--r-md);
+  border:1px solid var(--line-strong); background:rgba(255,255,255,.9); color:var(--ink);
+  font-size:.8125rem; font-family:inherit; transition:border-color .2s;
+}
+.field textarea{resize:vertical; line-height:1.6; font-size:.90625rem}
+/* 焦点语言全页统一：边框转强调色 + 2px 实色 outline（旧 3px 淡环实测 1.31:1 不可见） */
+.field input:focus,.field select:focus,.field textarea:focus{
+  outline:2px solid var(--accent-deep); outline-offset:1px; border-color:var(--accent);
+}
+.guardian-row{margin:8px 0 12px; font-size:.8125rem; color:var(--ink-2); line-height:1.6}
+.guardian-row label{display:flex; align-items:flex-start; gap:8px; padding:5px 0; cursor:pointer}
 .guardian-row input{accent-color:var(--accent); margin-top:3px}
-.privacy{font-size:12.5px; color:var(--muted); line-height:1.7}
-.privacy.micro{font-size:11px; color:var(--faint); margin:0}
-.reject{color:var(--danger); font-size:13.5px; margin:8px 0; font-weight:500}
-.error{color:var(--danger); font-size:13px; min-height:1.2em; margin:10px 0 0}
-.smallprint{font-size:11px; color:var(--faint); line-height:1.7; margin:16px 0 0; padding-top:10px; border-top:1px solid var(--hairline)}
+.guardian-row input:focus-visible{outline:2px solid var(--accent-deep); outline-offset:2px}
+/* 校验文案的稳态槽：min-height 覆盖单行行盒（13px×1.6=20.8px）+ 2px 底边距，
+   显隐切换不再把下面的字段推得跳来跳去 */
+.slot{min-height:calc(1.6em + 2px)}
+.reject{color:var(--danger); font-size:.8125rem; margin:0 0 2px}
+.reject:not(.hidden){animation:rise-in .18s ease-out}
+.privacy{font-size:.8125rem; color:var(--muted); line-height:1.7; text-wrap:pretty; font-variant-numeric:tabular-nums}
+.privacy.micro{font-size:.75rem; color:var(--faint); margin:0}
+.privacy.micro:empty{display:none}
+.error{color:var(--danger); font-size:.8125rem; min-height:1.2em; margin:10px 0 0}
+.smallprint{font-size:.75rem; color:var(--muted); line-height:1.7; margin:16px 0 0; padding-top:10px; border-top:1px solid var(--hairline); text-wrap:pretty}
 
-/* ---- 按钮：小而实色，无戏法 ---- */
+/* ---- 按钮：小而实色，1px 按压下沉是全部的戏法 ---- */
 .primary{
-  height:42px; width:100%; padding:0 20px; border:0; border-radius:var(--r-sm); cursor:pointer;
-  font-size:14.5px; font-weight:600; color:var(--cm-on-primary); background:var(--accent);
-  box-shadow:0 1px 2px rgba(34,56,74,.22);
-  transition:background-color .2s;
+  height:44px; width:100%; padding:0 20px; border:0; border-radius:var(--r-sm); cursor:pointer;
+  font-size:.90625rem; font-weight:600; font-family:inherit; color:var(--cm-on-primary); background:var(--accent);
+  box-shadow:var(--shadow-contact);
+  transition:background-color .2s, transform .05s ease, opacity .2s;
 }
 .primary:not(:disabled):hover{background:var(--accent-deep)}
-.primary:not(:disabled):active{background:#204461}
+.primary:not(:disabled):active{background:var(--accent-deep); transform:translateY(1px)}
 .primary:disabled{opacity:.45; cursor:not-allowed}
 .primary:focus-visible{outline:2px solid var(--accent-deep); outline-offset:2px}
 .primary.compact{width:auto}
+.sheet-narrow .primary{margin-top:20px}
 
 .linklike{
-  background:none; border:0; padding:2px 0; cursor:pointer;
-  font-size:12.5px; color:var(--accent); font-family:inherit;
+  background:none; border:0; padding:6px 4px; margin:-6px -4px; border-radius:4px; cursor:pointer;
+  font-size:.8125rem; color:var(--accent); font-family:inherit;
 }
 .linklike:hover{text-decoration:underline; text-underline-offset:3px}
-.linklike:focus-visible{outline:2px solid var(--accent-deep); outline-offset:2px; border-radius:2px}
+.linklike:active{color:var(--accent-deep)}
+.linklike:focus-visible{outline:2px solid var(--accent-deep); outline-offset:2px}
 
-/* 幽灵钮（报告预览/退订开关等次级动作）：白瓷面 + 发丝描边，与 danger 同族但中性 */
+/* 幽灵钮（次级动作）：白瓷面 + 控件级描边 */
 .ghost{
   height:38px; padding:0 16px; border-radius:var(--r-sm); cursor:pointer;
-  font-size:13px; font-weight:600; color:var(--ink-2); font-family:inherit;
-  background:rgba(255,255,255,.55); border:1px solid rgba(34,56,74,.22);
-  transition:background-color .2s, border-color .2s;
+  font-size:.8125rem; font-weight:600; color:var(--ink-2); font-family:inherit;
+  background:rgba(255,255,255,.55); border:1px solid var(--line-soft);
+  transition:background-color .2s, border-color .2s, transform .05s ease;
 }
-.ghost:not(:disabled):hover{background:rgba(255,255,255,.85); border-color:rgba(34,56,74,.34)}
+.ghost:not(:disabled):hover{background:rgba(255,255,255,.85); border-color:var(--line-strong-hover)}
+.ghost:not(:disabled):active{transform:translateY(1px)}
 .ghost:disabled{opacity:.45; cursor:not-allowed}
 .ghost:focus-visible{outline:2px solid var(--accent-deep); outline-offset:2px}
 .ghost.compact{width:auto}
 
+/* 不可逆动作：静息态即有警示底（不能把防线全交给原生 confirm），与导出拉开距离 */
 .danger{
-  height:38px; padding:0 16px; border-radius:var(--r-sm); cursor:pointer;
-  font-size:13.5px; font-weight:600; color:var(--danger);
-  background:rgba(255,255,255,.55); border:1px solid rgba(143,68,47,.4);
-  transition:background-color .2s;
+  height:38px; width:100%; padding:0 16px; border-radius:var(--r-sm); cursor:pointer;
+  font-size:.8125rem; font-weight:600; color:var(--danger); font-family:inherit;
+  background:rgba(143,68,47,.07); border:1px solid rgba(143,68,47,.5);
+  transition:background-color .2s, transform .05s ease;
 }
-.danger:hover{background:rgba(143,68,47,.08)}
+.danger:hover{background:rgba(143,68,47,.12)}
+.danger:active{transform:translateY(1px)}
 .danger:focus-visible{outline:2px solid var(--danger); outline-offset:2px}
+#deleteBtn{margin-top:18px}
 
-/* ---- 对话：消息铺在天空上，玻璃只留给输入坞 ---- */
+/* ---- 对话：消息铺在天空上，玻璃只留给输入坞与 AI 气泡 ---- */
 .messages{
-  flex:1; min-height:0; overflow-y:auto; padding:18px 16px 4px;
-  display:flex; flex-direction:column; gap:8px; scroll-behavior:smooth;
+  flex:1; min-height:0; overflow-y:auto; padding:18px var(--inset) 10px;
+  display:flex; flex-direction:column;
 }
 .messages::-webkit-scrollbar{width:9px}
 .messages::-webkit-scrollbar-thumb{background:rgba(46,90,126,.24); border-radius:8px; border:2px solid transparent; background-clip:padding-box}
 .messages::-webkit-scrollbar-track{background:transparent}
+/* 轮次节奏：换轮 14px、同一说话人连续 4px、系统通栏通知永远整段分隔 */
+.bubble + .bubble{margin-top:14px}
+.bubble.user + .bubble.user,.bubble.ai + .bubble.ai{margin-top:4px}
+.bubble + .bubble.ai.notice{margin-top:14px}
+.bubble.ai.notice + .bubble{margin-top:14px}
 .bubble{
-  max-width:78%; padding:9px 13px; border-radius:12px; line-height:1.7;
-  white-space:pre-wrap; word-break:break-word; font-size:14.5px;
-  box-shadow:0 1px 2px rgba(34,56,74,.05);
+  max-width:78%; padding:9px 13px; line-height:1.7;
+  white-space:pre-wrap; word-break:break-word; font-size:.90625rem;
 }
+/* 入场挂在 :not(.typing)：恰好在流式气泡 className 换回 'bubble ai' 的瞬间开始 */
+.bubble:not(.typing){animation:bubble-in .24s ease-out}
+@keyframes bubble-in{from{opacity:0; transform:translateY(6px)}to{opacity:1; transform:none}}
 .bubble.user{
   align-self:flex-end; color:var(--cm-on-primary); background:var(--user-bubble);
-  border-bottom-right-radius:4px; margin-left:14%;
+  border-radius:14px 14px 6px 14px; margin-left:14%;
+  box-shadow:var(--shadow-contact);
 }
 .bubble.ai{
-  align-self:flex-start; color:var(--ink); background:rgba(255,255,255,.82);
-  border:1px solid var(--hairline); border-bottom-left-radius:4px; margin-right:14%;
+  align-self:flex-start; color:var(--ink); background:rgba(255,255,255,.78);
+  /* 不挂 backdrop-filter：气泡浮在近均匀的天空上，blur 无可感知差异，
+     只为长会话的每个气泡白付一层采样合成；玻璃感由半透白+上缘高光成立 */
+  border:1px solid var(--hairline); border-radius:14px 14px 14px 6px; margin-right:14%;
+  box-shadow:var(--shadow-contact), inset 0 1px 0 rgba(255,255,255,.5);
 }
 /* 系统通知气泡（v2.0.0 P5 终态 notices）：整条通栏的安静提示，弱于危机横幅 */
 .bubble.ai.notice{
   align-self:stretch; max-width:none; margin-right:0;
-  background:rgba(46,90,126,.06); border:1px dashed rgba(46,90,126,.35);
-  color:var(--ink-2); font-size:13px; border-radius:var(--r-md);
+  background:rgba(46,90,126,.06); border:1px solid rgba(46,90,126,.25);
+  color:var(--ink-2); font-size:.8125rem; border-radius:var(--r-md);
 }
-.typing{
-  flex:none; color:var(--muted); font-size:12px; min-height:20px; padding:2px 18px 4px;
-  opacity:0; transition:opacity .25s; display:flex; align-items:center; gap:6px;
+/* 待响应槽：等待首个流式事件的占位是一枚带内嵌三点的浅底短签（呼吸）——
+   输入反馈收编进气泡本身，不再与圆点行双指示并存 */
+.bubble.ai.typing{
+  min-height:24px; min-width:76px;
+  background:rgba(255,255,255,.55); border-color:rgba(34,56,74,.12);
+  box-shadow:none; -webkit-backdrop-filter:none; backdrop-filter:none;
+  animation:hold-pulse 1.8s ease-in-out infinite;
 }
-.typing.show{opacity:1}
-.typing .td{width:4px; height:4px; border-radius:50%; background:var(--muted); opacity:.4; animation:tdp 1.2s infinite}
-.typing .td:nth-child(2){animation-delay:.2s}
-.typing .td:nth-child(3){animation-delay:.4s}
+.bubble.ai.typing::after{
+  content:"•••"; margin-left:2px;
+  font-size:.75rem; letter-spacing:3px; color:var(--muted);
+  animation:tdp 1.6s infinite;
+}
+@keyframes hold-pulse{0%,100%{opacity:.55}50%{opacity:.95}}
+/* 问候独处时的一句余白（:has 渐进增强，不支持则自然不显示）。
+   它是唯一不落在任何表面上、直接坐在天空上的文字——不能用 faint：
+   暗色压暗后对天空实测 <4:1，ink-2 在两种模式下均 ≥4.5:1。 */
+#chatMessages:has(> .bubble:only-child)::after{
+  content:"慢慢来，这里不赶时间";
+  margin-top:14px; align-self:flex-start;
+  font-size:.75rem; color:var(--ink-2); letter-spacing:.02em;
+}
+/* 圆点行永久退场：流式占位气泡已内嵌三点（见上）。api.js 对 #typing 的
+   .show 切换保留（契约元素必须留在 DOM），display:none 使其不可见。 */
+#typing{display:none}
 @keyframes tdp{0%,60%,100%{opacity:.25; transform:translateY(0)}30%{opacity:1; transform:translateY(-2px)}}
 
-/* ---- 输入坞：磨砂条 + 内嵌发送钮 ---- */
+/* ---- 输入坞：磨砂条 + 内嵌发送钮；聚焦时玻璃微亮一档 ---- */
 .composer{
-  flex:none; padding:10px 14px 8px; background:var(--glass);
+  flex:none; padding:10px var(--inset) 8px; background:var(--glass);
   -webkit-backdrop-filter:blur(14px) saturate(115%); backdrop-filter:blur(14px) saturate(115%);
   border-top:1px solid var(--hairline);
+  box-shadow:inset 0 1px 0 var(--edge-light);
+  transition:background-color .3s;
 }
+.composer:focus-within{background:var(--cm-glass-strong)}
 .input-row{display:flex; gap:8px}
 .input-row input{
-  flex:1; height:42px; padding:0 13px; border-radius:var(--r-md);
-  border:1px solid rgba(34,56,74,.2); background:rgba(255,255,255,.92); color:var(--ink); font-size:14.5px;
-  transition:border-color .2s, box-shadow .2s;
+  flex:1; height:44px; padding:0 13px; border-radius:var(--r-md);
+  border:1px solid var(--line-strong); background:rgba(255,255,255,.92); color:var(--ink);
+  font-size:.90625rem; font-family:inherit; transition:border-color .2s;
 }
 .input-row input::placeholder{color:var(--faint)}
-.input-row input:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--ring)}
+.input-row input:focus{outline:2px solid var(--accent-deep); outline-offset:1px; border-color:var(--accent)}
 .send{
-  flex:none; width:42px; height:42px; border:0; border-radius:var(--r-md); cursor:pointer;
-  background:var(--accent); color:var(--cm-on-primary);
+  flex:none; width:44px; height:44px; border:0; border-radius:var(--r-md); cursor:pointer;
+  background:var(--accent); color:var(--cm-on-primary); font-family:inherit;
   display:flex; align-items:center; justify-content:center;
-  transition:background-color .2s;
+  box-shadow:var(--shadow-contact);
+  transition:background-color .2s, transform .05s ease, opacity .2s;
 }
-.send svg{width:16px; height:16px}
+.send svg{width:16px; height:16px; transition:transform .15s}
 .send:not(:disabled):hover{background:var(--accent-deep)}
+.send:not(:disabled):hover svg{transform:translate(1px,-1px)}
+.send:not(:disabled):active{transform:translateY(1px)}
 .send:disabled{opacity:.45; cursor:not-allowed}
 .send:focus-visible{outline:2px solid var(--accent-deep); outline-offset:2px}
-.composer-meta{display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top:6px}
+.composer-meta{display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:6px 12px; margin-top:8px}
 .composer-meta .privacy{min-width:0}
-
-/* ---- 危机通告：暖纸条 + 陶土左线 ---- */
-.crisis{
-  flex:none; margin:12px 16px 0; padding:10px 14px;
-  background:rgba(255,250,243,.92);
-  border:1px solid rgba(164,90,55,.3); border-left:3px solid var(--warm-line);
-  border-radius:var(--r-md);
+/* 唯一导航入口升为可见 chip（通往申诉/删除的路径不该是最弱的文字） */
+#openSettings{
+  flex:none; margin:0; padding:5px 10px; border:1px solid var(--line-soft); border-radius:var(--r-sm);
+  background:rgba(255,255,255,.55); font-size:.75rem; line-height:1.4;
+  transition:background-color .2s, border-color .2s;
 }
-.crisis h3{margin:0 0 3px; font-size:13.5px; color:#6E3A24; font-weight:600}
-.crisis p{margin:0; font-size:13px; color:#7A564A; line-height:1.6}
+#openSettings:hover{background:rgba(255,255,255,.85); border-color:var(--line-strong-hover); text-decoration:none}
+#openSettings:active{color:var(--accent-deep)}
+#openSettings:focus-visible{outline:2px solid var(--accent-deep); outline-offset:2px}
 
-/* ---- 设置分节：发丝线 + 小节标题 ---- */
+/* ---- 危机通告：分级材质。high=暖纸+陶土（郑重不恐吓）；low=绿线安抚（不"亮牌"） ----
+   外槽 0fr→1fr 高度过渡：display:none 揭示的那一帧不再把用户正注视的消息区
+   一整块推下（reflow 跳变与"软入场"矛盾）；横幅随高度渐开。
+   无 :has 支持时瞬时展开——横幅可见性永远优先于动画（安全面不让位）。 */
+.crisis-slot{display:grid; grid-template-rows:1fr}
+.crisis-slot>.crisis{min-height:0; overflow:hidden}
+@supports selector(:has(*)){
+  .crisis-slot{grid-template-rows:0fr; transition:grid-template-rows .4s cubic-bezier(.22,.61,.36,1)}
+  .crisis-slot:has(> .crisis:not(.hidden)){grid-template-rows:1fr}
+}
+.crisis{
+  flex:none; margin:12px var(--inset) 0; padding:12px 16px;
+  background:var(--crisis-bg); border:1px solid var(--crisis-line); border-left:2px solid var(--warm-line);
+  border-radius:var(--r-md);
+  -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);
+  animation:crisis-in .45s cubic-bezier(.22,.61,.36,1);
+}
+@keyframes crisis-in{from{opacity:0; transform:translateY(-6px)}to{opacity:1; transform:none}}
+.crisis h2{
+  display:flex; align-items:center; gap:6px;
+  font:600 .90625rem/1.4 var(--sans); letter-spacing:.01em;
+  color:var(--crisis-ink); margin:0 0 4px; padding:0; border:0;
+}
+.crisis-ic{width:15px; height:15px; color:var(--warm-line); flex:none}
+.crisis p{margin:0; font-size:.8125rem; color:var(--crisis-ink-2); line-height:1.7; font-variant-numeric:tabular-nums}
+.crisis[data-risk="low"]{background:rgba(244,249,246,.92); border-color:rgba(62,122,94,.28); border-left-color:var(--good)}
+.crisis[data-risk="low"] h2{color:var(--ink-2)}
+.crisis[data-risk="low"] p{color:var(--muted)}
+.crisis[data-risk="low"] .crisis-ic{display:none}
+
+/* ---- 设置分节：衬线节标题 + details 原生折叠（低频分节不再贡献 3 屏长滚） ---- */
 .block{padding:14px 0 16px; border-bottom:1px solid var(--hairline)}
-.sheet-head + .block{padding-top:10px}
-.block:last-of-type{border-bottom:0}
-.block h3{margin:0 0 6px; font-size:12.5px; color:var(--ink-2); font-weight:600; letter-spacing:.06em}
+.sheet-head + .block{padding-top:12px}
+/* 只给真正的末节去线（:last-of-type 按标签各取其一，会让「隐私与退出」
+   与「产品边界说明」之间的分隔线意外消失） */
+#sec-boundary{border-bottom:0}
+/* 节标题排印同时覆盖两种结构：div 直接子 h3 / details 里 summary 包裹的 h3 */
+.block>h3,details.block>summary h3{
+  font-family:var(--serif); font-size:1rem; font-weight:400;
+  color:var(--ink); letter-spacing:.01em; line-height:1.5;
+}
+.block>h3{margin:0 0 6px}
 .block .privacy{margin:0 0 8px}
-.res-list{margin:0; padding:0; list-style:none; font-size:13px; color:var(--muted); line-height:1.7}
+summary{list-style:none; cursor:pointer}
+summary::-webkit-details-marker{display:none}
+details.block>summary{display:flex; align-items:center; justify-content:space-between; gap:8px; padding:14px 0 12px}
+details.block>summary:hover h3{color:var(--ink-2)}
+details.block>summary:focus-visible{outline:2px solid var(--accent-deep); outline-offset:2px; border-radius:4px}
+details.block>summary h3{margin:0; flex:1}
+details.block>summary::after{
+  content:""; flex:none; width:8px; height:8px; margin-right:3px;
+  border-right:1.5px solid var(--muted); border-bottom:1.5px solid var(--muted);
+  transform:rotate(45deg); transition:transform .2s;
+}
+details.block[open]>summary::after{transform:rotate(225deg)}
+details.block .block-body{padding:2px 0 4px}
+/* 资源空态：最承接求助意图的分节不能塌成"标题+免责"的空洞 */
+.res-list{margin:0; padding:0; list-style:none; font-size:.8125rem; color:var(--muted); line-height:1.7}
 .res-list li{position:relative; padding-left:1em; margin-bottom:5px}
 .res-list li::before{content:"·"; position:absolute; left:.1em; color:var(--accent); font-weight:700}
 .res-list strong{color:var(--ink-2); font-weight:600}
-.field.small{margin:10px 0}
-.field.small>span,.field.small{font-size:12.5px}
-.field select,.field textarea{
-  width:100%; padding:10px 12px; border-radius:var(--r-md);
-  border:1px solid rgba(34,56,74,.22); background:rgba(255,255,255,.9); color:var(--ink);
-  font-size:13.5px; font-family:inherit;
+#resourceList:empty{min-height:1em}
+#resourceList:empty::before{
+  content:"暂无可展示的转介条目：所有条目须经人工审核后才会在此出现";
+  display:block; font-size:.75rem; color:var(--faint); line-height:1.7;
 }
-.field textarea{resize:vertical; line-height:1.6}
-.field select:focus,.field textarea:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--ring)}
-#appealMsg,#deleteMsg{margin-top:8px}
-
-/* ---- 情绪自评：纸面条目 + 结果区间（不呈现分数） ---- */
-.assessment-form{margin-top:10px}
-.assessment-form .assess-item{margin-bottom:10px}
-.assessment-form .assess-q{display:block; font-size:12.5px; color:var(--muted); margin-bottom:5px}
-.assessment-form select{
-  width:100%; padding:9px 11px; border-radius:var(--r-md);
-  border:1px solid rgba(34,56,74,.22); background:rgba(255,255,255,.9); color:var(--ink);
-  font-size:13px; font-family:inherit;
+/* 操作回执消息槽：工单号/回执是用户要核对的内容——13px + 次级墨，
+   与常驻合规微文案（12px faint）拉开字号、颜色两档 */
+#appealMsg,#reportMsg,#reportOptMsg,#retentionMsg,#exportMsg,#deleteMsg{
+  font-size:.8125rem; color:var(--ink-2); line-height:1.6; margin:8px 0 0; font-variant-numeric:tabular-nums;
 }
-.assessment-form select:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--ring)}
-.assessment-result{
-  margin-top:10px; padding:12px 14px; border-radius:var(--r-md);
-  background:var(--paper); border:1px solid var(--hairline); border-left:2px solid var(--accent);
-  font-size:13px; line-height:1.7; color:var(--ink-2);
-}
-.assessment-result .band{display:block; font-family:var(--serif); font-size:14px; color:var(--ink); margin-bottom:4px}
-.assessment-result .disclaimer{margin:8px 0 0; font-size:12px; color:var(--faint)}
-.assessment-result.urgent{border-left-color:var(--warm-line); background:rgba(180,102,63,.06)}
-.assessment-result .urgent-note{margin:8px 0 0; color:var(--danger)}
-.assessment-result .entry-note{margin:8px 0 0; font-size:12.5px; color:var(--muted)}
-#retentionMsg,#exportMsg{margin-top:8px}
-#exportBtn{margin-top:4px}
+#appealMsg:empty,#reportMsg:empty,#reportOptMsg:empty,#retentionMsg:empty,#exportMsg:empty,#deleteMsg:empty{display:none}
 .hotline-tel{
   display:inline-block; margin-left:.35em; padding:0 .4em; border-radius:var(--r-sm);
   background:rgba(46,90,126,.08); color:var(--accent); font-variant-numeric:tabular-nums;
 }
 
-/* ---- 疏导报告预览：纸面窄栏，等宽正文便于核对 ---- */
+/* ---- 情绪自评：纸面条目 + 结果区间（不呈现分数） ---- */
+.assessment-form{margin-top:10px}
+.assessment-form select{
+  width:100%; padding:9px 11px; border-radius:var(--r-md);
+  border:1px solid var(--line-strong); background:rgba(255,255,255,.9); color:var(--ink);
+  font-size:.8125rem; font-family:inherit; transition:border-color .2s;
+}
+.assessment-form select:focus{outline:2px solid var(--accent-deep); outline-offset:1px; border-color:var(--accent)}
+.assessment-result{
+  margin-top:10px; padding:12px 14px; border-radius:var(--r-md);
+  background:var(--paper-warm); border:1px solid var(--hairline); border-left:2px solid var(--accent);
+  font-size:.8125rem; line-height:1.7; color:var(--ink-2); font-variant-numeric:tabular-nums;
+}
+.assessment-result:not(.hidden){animation:rise-in .3s ease-out}
+.assessment-result .band{display:block; font-family:var(--sans); font-size:.90625rem; font-weight:600; color:var(--ink); margin-bottom:4px}
+.assessment-result .disclaimer{margin:8px 0 0; font-size:.75rem; color:var(--faint)}
+.assessment-result.urgent{border-left-color:var(--warm-line); background:rgba(180,102,63,.06)}
+.assessment-result .urgent-note{margin:8px 0 0; color:var(--danger)}
+.assessment-result .entry-note{margin:8px 0 0; font-size:.8125rem; color:var(--muted)}
+
+/* ---- 疏导报告预览：纸面窄栏，数字等宽便于核对 ---- */
 .report-preview{
   margin:10px 0 0; padding:12px 14px; max-height:280px; overflow:auto;
   border:1px solid var(--hairline); border-left:2px solid var(--accent); border-radius:var(--r-md);
-  background:var(--paper); color:var(--ink-2);
-  font-family:var(--sans); font-size:12.5px; line-height:1.75;
-  white-space:pre-wrap; word-break:break-word;
+  background:var(--paper-warm); color:var(--ink-2);
+  font-family:var(--sans); font-size:.8125rem; line-height:1.75;
+  white-space:pre-wrap; word-break:break-word; font-variant-numeric:tabular-nums;
 }
-#reportMsg{margin-top:8px}
-#reportSendBtn{margin-top:8px}
+#reportPreview:not(.hidden){animation:rise-in .3s ease-out}
+#reportSendBtn:not(.hidden){animation:rise-in .3s ease-out}
+#reportSendBtn{margin-top:8px; width:auto}
+#reportOptBtn{margin-top:8px}
+@keyframes rise-in{from{opacity:0; transform:translateY(6px)}to{opacity:1; transform:none}}
 
-/* ---- AI 披露弹窗：白瓷对话卡 ---- */
+/* ---- AI 披露弹窗：白瓷对话卡（遮罩先落、卡片后起） ---- */
 .disclosure{
   position:fixed; inset:0; z-index:60; display:flex; align-items:center; justify-content:center;
   padding:20px; background:rgba(44,68,87,.28);
   -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);
 }
+.disclosure:not(.hidden){animation:veil-in .25s ease-out}
+@keyframes veil-in{from{opacity:0}to{opacity:1}}
 .disclosure .dlg{
   max-width:400px; width:100%; border-radius:var(--r-lg); padding:22px 24px 18px;
   background:rgba(255,255,255,.96);
   border:1px solid var(--hairline);
-  box-shadow:0 20px 48px rgba(24,42,58,.24);
+  box-shadow:inset 0 1px 0 var(--edge-light), var(--shadow-pop);
 }
-.disclosure h2{border:0; padding:0; margin:0 0 10px; font-size:18px}
-.disclosure p{line-height:1.8; font-size:14px; color:var(--ink-2); margin:0 0 16px}
+.disclosure:not(.hidden) .dlg{animation:dlg-in .32s cubic-bezier(.22,.61,.36,1)}
+@keyframes dlg-in{from{opacity:0; transform:translateY(12px) scale(.98)}to{opacity:1; transform:none}}
+.disclosure h2{border:0; padding:0; margin:0 0 10px}
+.disclosure p{line-height:1.8; font-size:.90625rem; color:var(--ink-2); margin:0 0 16px; text-wrap:pretty}
 .disclosure .primary{display:block; margin-left:auto}
 
 /* ---- 响应式 ---- */
 @media (max-width:640px){
-  .appbar{flex-wrap:wrap; row-gap:1px; padding:8px 14px}
-  .brand{font-size:14.5px}
-  .ai-note{flex-basis:100%; text-align:left; font-size:11px}
+  :root{--inset:12px}
+  .appbar{flex-wrap:wrap; row-gap:4px; padding:8px var(--inset)}
+  .brand{font-size:.90625rem}
+  .ai-note{font-size:.75rem}
   #registerPanel,#settingsPanel{padding:18px 12px 32px}
   .sheet{padding:18px 16px 14px}
-  .messages{padding:14px 12px 4px}
+  #settingsPanel .sheet{padding:0 16px 14px}
+  .sheet-head{margin:0 -16px; padding:12px 16px 8px}
+  .messages{padding:14px 12px 8px}
   .bubble{max-width:86%}
   .bubble.user{margin-left:10%}
   .bubble.ai{margin-right:10%}
-  .crisis{margin:10px 12px 0}
-  .composer{padding:8px 10px 8px}
-  .composer-meta{flex-wrap:wrap; row-gap:2px}
+  .composer{padding:8px var(--inset)}
+  /* 移动端把天顶云压暗一档：保住晨雾三段渐变的可读性 */
+  body::before{background:
+    radial-gradient(58vw 30vh at 18% -6%, rgba(255,214,170,.12), rgba(255,214,170,0) 60%),
+    radial-gradient(50vw 26vh at 82% 6%, rgba(255,255,255,.55), rgba(255,255,255,0) 62%),
+    radial-gradient(44vw 22vh at 6% 32%, rgba(248,251,253,.42), rgba(248,251,253,0) 58%),
+    radial-gradient(64vw 24vh at 50% 116%, rgba(240,246,250,.35), rgba(240,246,250,0) 60%)}
 }
+/* 深夜减光（非完整深色模式）：产品定位含深夜情绪场景，纯晨雾在暗室是一整块
+   发光体——云雾降透明度、墨纱压天空、噪点减半，白天完全不变。 */
+@media (prefers-color-scheme: dark){
+  body{background:
+    linear-gradient(180deg, rgba(40,58,76,.14), rgba(40,58,76,.20)),
+    linear-gradient(180deg, var(--sky-hi) 0%, var(--sky-mid) 55%, var(--sky-low) 100%)}
+  body::before{background:
+    radial-gradient(58vw 30vh at 18% -6%, rgba(255,206,158,.10), rgba(255,206,158,0) 60%),
+    radial-gradient(50vw 26vh at 82% 6%, rgba(255,255,255,.28), rgba(255,255,255,0) 62%),
+    radial-gradient(44vw 22vh at 6% 32%, rgba(233,240,246,.16), rgba(233,240,246,0) 58%),
+    radial-gradient(64vw 24vh at 50% 116%, rgba(224,234,242,.16), rgba(224,234,242,0) 60%)}
+  body::after{opacity:.55}
+  .shell{background:linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,.04))}
+}
+/* reduce-motion 定向退化：只关位移/滚动/循环动画，色彩与透明度过渡保留——
+   减动效用户不该得到一块"死"的界面。 */
 @media (prefers-reduced-motion: reduce){
-  *,*::before,*::after{animation:none!important; transition:none!important; scroll-behavior:auto!important}
-  .typing .td{animation:none}
+  body::before{animation:none}
+  .crisis-slot{transition:none}
+  .screen:not(.hidden),
+  .bubble:not(.typing),
+  .bubble.ai.typing,
+  .bubble.ai.typing::after,
+  .crisis,
+  .disclosure:not(.hidden),
+  .disclosure:not(.hidden) .dlg,
+  #reportPreview:not(.hidden),
+  #reportSendBtn:not(.hidden),
+  .assessment-result:not(.hidden),
+  .reject:not(.hidden){animation:none}
 }

@@ -52,7 +52,10 @@
   --cm-shadow:0 8px 24px rgba(46,74,99,.07);
   --cm-shadow-pop:0 20px 48px rgba(24,42,58,.24);
 
-  /* —— 字体栈：衬线仅用于品牌与标题，正文无衬线 —— */
-  --cm-serif:Georgia,"Times New Roman","Noto Serif SC","Source Han Serif SC","Songti SC","SimSun",serif;
-  --cm-sans:"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Segoe UI",system-ui,sans-serif;
+  /* —— 字体栈：衬线仅用于品牌与标题，正文无衬线 ——
+     衬线去掉 Times New Roman（Georgia 已覆盖拉丁，排在第二永远轮不到，纯死重）；
+     sans 在雅黑前插入 OEM 现代无衬线（华为/小米/OPPO 设备本机自带，圆融一档，
+     未安装则无损回退雅黑），正文气质更贴「温柔陪伴」，零下载零请求。 */
+  --cm-serif:Georgia,"Noto Serif SC","Source Han Serif SC","Songti SC","SimSun",serif;
+  --cm-sans:"PingFang SC","HarmonyOS Sans SC","MiSans","OPPO Sans","Hiragino Sans GB","Microsoft YaHei","Segoe UI",system-ui,sans-serif;
 }
