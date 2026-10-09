@@ -1,11 +1,6 @@
-"""隐私端点（v2.0.0 P3，功能对照表 #9）：保留期 / 一键导出 / 便捷退出（TC-PRIV-001~004）。
+"""隐私端点：保留期 / 一键导出 / 便捷退出。
 
-- 保留期 7/30/90 天可配，到期删除计划自首次会话起算（真删除由 jobs/purge 执行，P7）；
-- 一键导出只回传本人（匿名最小画像 + 会话消息），成功后落 data_exported 审计
-  （DAL 层 log_export；尽力而为，审计失败不阻断导出——数据主体权利优先）；
-- DELETE /profile/{key}：画像 + thread + 保留期记录一并清除，幂等且不泄露存在性（防枚举）。
-
-红线：导出内容不落服务端额外副本；保留期设置只存匿名标识，不存任何联系方式。
+导出内容不落服务端额外副本；保留期设置只存匿名标识，不存任何联系方式。
 """
 
 from __future__ import annotations
@@ -14,8 +9,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from ...privacy import export_bundle
-from ...storage.privacy import PrivacyError
+from ...storage.privacy import PrivacyError, export_bundle
 from ..deps import AppContext, _delete_thread, _thread_messages, get_ctx
 from ..schemas import RetentionReq
 
@@ -51,17 +45,16 @@ def api_privacy_export(profile_key: str, ctx: Annotated[AppContext, Depends(get_
         retention=ctx.privacy_store.get_retention(profile_key),
     )
     try:
-        # data_exported 审计（ADR-011 §7）：尽力而为——导出本身是数据主体权利，审计故障不应拦它。
+        # 审计尽力而为：导出是数据主体权利，审计故障不应拦它。
         ctx.privacy_store.log_export(profile_key)
-    except Exception:  # noqa: BLE001 -- 审计失败不阻断导出
+    except Exception:  # noqa: BLE001
         pass
     return bundle
 
 
 @router.delete("/profile/{profile_key}")
 def api_delete_profile(profile_key: str, ctx: Annotated[AppContext, Depends(get_ctx)]) -> dict[str, Any]:
-    # 一键退出：画像与 thread 数据一并清除；store.delete 缺省 reason=user_delete 供
-    # data_deleted 审计（P4）。幂等：重复删除仍 200，不因状态码泄露标识是否存在（防枚举）。
+    # 幂等：重复删除仍 200，不因状态码泄露标识是否存在（防枚举）。
     profile_deleted = ctx.store.delete(profile_key)
     thread_deleted = _delete_thread(ctx.graph, profile_key)
     ctx.privacy_store.forget(profile_key)

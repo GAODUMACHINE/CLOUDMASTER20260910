@@ -1,5 +1,6 @@
-"""持久化 Checkpointer（v0.2.0，ADR-002）。SQLite 文件落盘，跨刷新/跨天接续。
-路径经环境变量注入，禁止绝对路径硬编码；测试一律用 tmp_path。"""
+"""持久化 Checkpointer：SQLite 文件落盘，跨刷新/跨天接续。
+
+路径经环境变量注入，禁止绝对路径硬编码。"""
 
 from __future__ import annotations
 

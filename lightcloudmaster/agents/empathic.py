@@ -1,4 +1,4 @@
-"""empathic 节点——v0.1.0 单 Agent ReAct 承载。prompt 禁区：不诊断/不开药/不评判。"""
+"""empathic 节点：共情对话主力输出。prompt 禁区：不诊断/不开药/不评判。"""
 
 from __future__ import annotations
 
@@ -32,7 +32,7 @@ def empathic_node(state: dict[str, Any], llm: Any) -> dict[str, Any]:
     profile = state.get("user_profile") or {}
     age = profile.get("age")
     minor_mode = isinstance(age, int) and age < 18
-    # 未成年走收紧模板（方案 4.3.7-4：简短温和、不展开敏感细节、安全优先引导线下成年人）。
+    # 未成年走收紧模板（简短温和、不展开敏感细节、安全优先引导线下成年人）。
     content = react_agent(llm, text, minor_mode=minor_mode)
     if risk == "low":
         content = content + LOW_RISK_TAIL

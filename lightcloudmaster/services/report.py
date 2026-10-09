@@ -1,15 +1,10 @@
-"""疏导报告服务（v2.0.0 P4，ADR-011 §1 / ADR-009）：草稿生成 → 前端二次确认 → 发送全链路。
+"""疏导报告服务：草稿生成 → 前端二次确认 → 发送全链路。
 
-业务规则自 web_app.py 五个 /api/report/* 端点逐字迁移，HTTP 语义全部经
-ReportServiceError(status_code, detail) 表达，路由统一翻译 HTTPException；
-「业务性拒绝」（用户未确认 / 已退订）不是错误，返回 {"sent": False, "reason": ...}。
+HTTP 语义全部经 ReportServiceError(status_code, detail) 表达，路由统一翻译
+HTTPException；「业务性拒绝」（用户未确认 / 已退订）不是错误，返回
+{"sent": False, "reason": ...}。
 
-修复（ADR-011）：report_status 按 profile_key 过滤发送记录——旧端点返回全量
-sent_records()，任一请求者可见所有用户报告（跨用户泄漏）；台账自 storage/reports
-（SQLite）起持久化，进程重启不再丢草稿与发送记录。
-
-红线：报告只含聚合信息与建议、不含对话原文（build_report 的
-contains_raw_conversation=False）；发送台账只存交付元数据（mark_sent 不落正文）；
+红线：报告只含聚合信息与建议、不含对话原文；发送台账只存交付元数据；
 本模块不开文件（DAL 经 storage/reports，消息读取经 checkpointer 的 get_state）。
 """
 
@@ -42,7 +37,6 @@ class ReportServiceError(Exception):
 
 
 # 报告确认令牌的服务端盐：进程级随机，令牌不可跨进程复用（用户须当次确认）。
-# v2.0.0 P4 自 web_app.py 逐字迁入（web 层改为 import 本函数，进程内盐唯一来源）。
 _TOKEN_SALT = secrets.token_hex(16)
 
 
@@ -55,8 +49,7 @@ def report_token(profile_key: str, report_id: str, salt: str | None = None) -> s
 def _thread_state(graph: Any, thread_id: str) -> dict[str, Any]:
     """读图状态 values；异常/无 thread 返回 {}。
 
-    与 web/deps.py 各自持有同形副本是有意为之（层边界：web 辅助面向 HTTP 容错，
-    services 面向业务语义；避免 services→web 反向依赖）。
+    与 web/deps.py 各自持有同形副本是有意为之（避免 services→web 反向依赖）。
     """
     try:
         snap = graph.get_state({"configurable": {"thread_id": thread_id}})
@@ -66,11 +59,7 @@ def _thread_state(graph: Any, thread_id: str) -> dict[str, Any]:
 
 
 def _thread_messages(graph: Any, thread_id: str) -> list[Any]:
-    """读图消息列表；异常/无 thread 返回 []（副本取舍同 _thread_state）。
-
-    报告草稿走 _thread_state 一次取全（messages/citations/usage_meta 同源），
-    本函数留给只要消息列表的调用方（导出/审计类读取）。
-    """
+    """读图消息列表；异常/无 thread 返回 []。"""
     try:
         snap = graph.get_state({"configurable": {"thread_id": thread_id}})
         return list((snap.values or {}).get("messages") or [])
@@ -125,9 +114,9 @@ def send_report(
 ) -> dict[str, Any]:
     """前端二次确认后发送（产品级 HITL）：令牌相符 + 未退订 + 通道已配置，缺一不发送。
 
-    语义自旧 /api/report/send 端点逐字迁移：未确认 / 已退订 → {"sent": False, reason}
-    （业务性拒绝，非错误）；草稿缺失 404 / 重复提交 409 / 令牌不匹配 403 / 画像缺失
-    404 / 缺邮箱 400 / mailer 未配置 503 经 ReportServiceError 表达。
+    未确认 / 已退订 → {"sent": False, reason}（业务性拒绝，非错误）；草稿缺失 404 /
+    重复提交 409 / 令牌不匹配 403 / 画像缺失 404 / 缺邮箱 400 / mailer 未配置 503
+    经 ReportServiceError 表达。
     """
     draft = registry.get_draft(report_id)
     if draft is None:
@@ -167,7 +156,7 @@ def send_report(
 
 
 def report_status(*, store: Any, registry: Any, mailer: Any, profile_key: str) -> dict[str, Any]:
-    """本人订阅状态与发送记录：sent_records(profile_key) 按本人过滤（修跨用户泄漏）。"""
+    """本人订阅状态与发送记录：sent_records(profile_key) 按本人过滤。"""
     profile = store.get(profile_key) or {}
     if not profile:
         raise ReportServiceError(404, "未找到该匿名标识")

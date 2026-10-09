@@ -1,12 +1,8 @@
-"""到期回访交付执行器（v2.0.0 P7，ADR-011 §5）：jobs.run_due。
+"""到期回访交付执行器：run_due。
 
 执行器语义 = 「到期交付」：把 pending 回访翻成 done（审核台待办区可见条目）。
-回访本身是线下人工动作（ADR-003 温和不打扰），系统职责是可见性而非执行——
-不代打电话、不催办、不向用户发消息。
-
-调用方：运维脚本 / 外部调度（如 Windows 计划任务）：
-    python -c "from lightcloudmaster.jobs.followups import run_due; print(run_due(queue=None ...))"
-（生产应经 server 装配的 FollowupQueue 构造后传入；此处保持纯函数、不自行开库。）
+回访本身是线下人工动作，系统职责是可见性而非执行——不代打电话、不催办、
+不向用户发消息。保持纯函数，队列由调用方构造传入。
 """
 
 from __future__ import annotations

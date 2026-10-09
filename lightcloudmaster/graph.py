@@ -1,4 +1,4 @@
-"""图组装——守卫顺序 time_guard → crisis → supervisor → empathic/knowledge（ADR-001，不可绕过）。
+"""图组装——守卫顺序 time_guard → crisis → supervisor → empathic/knowledge，不可绕过。
 L2 时在 human_review 前 interrupt_before 中断；人工审核结论写回后图恢复。"""
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ def _crisis(state: dict[str, Any], llm: Any) -> dict[str, Any]:
 def _human_review(state: dict[str, Any]) -> dict[str, Any]:
     from langchain_core.messages import AIMessage
 
-    from .crisis_chain import handle_review
+    from .services.crisis_chain import handle_review
 
     decision = state.get("review_decision") or "pending"
     note = "（L2 危机）人工审核结论：" + decision

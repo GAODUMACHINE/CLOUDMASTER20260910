@@ -1,23 +1,9 @@
-"""用户画像 DAL（v2.0.0 存储层，ADR-002 最小画像）：profiles 表。
+"""用户画像 DAL：profiles 表（最小画像白名单 7 字段）。
 
-对旧 lightcloudmaster/profile_store.py（JSON 文件版）的 1:1 SQLite 移植：类名 / 方法签名 /
-ProfileValidationError 与中文文案（逐字）/ 返回值语义完全一致，调用方零改动切换。
-白名单 7 字段（age / is_minor / guardian_contact_available / emergency_contact_available /
-dependency_tendency / email / report_opt_in）与注释自旧模块原样复制，保持自包含
-（旧模块 P3 才删，过渡期允许重复）。
-
-设计取舍（混合「类型列 + data_json」）：
-- data_json 存 json.dumps(校验后 dict)——**读侧权威**：get() 返回 json.loads 的精确副本，
-  显式 None 与缺省键的区别、字段顺序之外的任何形态细节均逐字节往返，报告/导出等
-  消费方零适配。
-- 类型列冗余存同值（缺省字段为 NULL）：只为 email 回查（find_keys_by_email）能在
-  列上做 TRIM/LOWER 等值匹配并走 idx_profiles_email，不必全表反序列化；其余列
-  供 P4 数据治理（如未成年台账）直查，读侧一律以 data_json 为准。
-- put() 整体替换语义 = 旧 `self._data[key] = cleaned`：UPSERT 的 DO UPDATE 覆盖
-  全部列（含置 NULL），created_at 首次写入后保持不变，updated_at 每次 put 刷新。
-- 邮箱比较忽略大小写与首尾空白（与旧一致）；注册邮箱经 _EMAIL_RE 校验为 ASCII，
-  SQLite LOWER() 的 ASCII 语义足够。返回顺序按 rowid（= 首次注册序，对应旧 dict
-  插入序）。
+data_json 存校验后的完整 dict（读侧权威，get() 返回精确副本）；类型列冗余存同值，
+只为 email 回查（find_keys_by_email）能走 idx_profiles_email 列上匹配，其余列供
+数据治理直查。put() 整体替换语义：UPSERT 覆盖全部列，created_at 首次写入后不变。
+邮箱比较忽略大小写与首尾空白；返回顺序按 rowid（首次注册序）。
 """
 
 from __future__ import annotations
@@ -34,8 +20,8 @@ ALLOWED_FIELDS = {
     "guardian_contact_available": bool,
     "emergency_contact_available": bool,
     "dependency_tendency": bool,
-    # ADR-009：注册邮箱（计划书 3.1.3-8）。属最小必要采集的**唯一例外**，
-    # 因「疏导报告经确认后发至注册邮箱」必须要有投递地址；可查看、可删除、可退订。
+    # 注册邮箱：最小必要采集的唯一例外——「疏导报告经确认后发至注册邮箱」必须有
+    # 投递地址；可查看、可删除、可退订。
     "email": str,
     # 报告订阅开关（默认可发；用户回信 STOP 或前端退订即置 False）
     "report_opt_in": bool,
@@ -61,7 +47,6 @@ class ProfileStore:
 
     def __init__(self, path: str | None = None):
         self._path = db.resolve_db_path(path, "PROFILE_DB_PATH")
-        # 与旧实现一致：父目录不存在则先建（生产缺省 data/private/）。
         self._path.parent.mkdir(parents=True, exist_ok=True)
         self._conn, self._lock = db.connect(self._path)
 
@@ -86,11 +71,8 @@ class ProfileStore:
     def _typed_values(cleaned: dict[str, Any]) -> tuple[Any, ...]:
         """校验后 dict → 类型列值（缺省字段为 None）。
 
-        **逐列显式排列，严格对齐 put() INSERT 的列清单**：
-        (age, is_minor, guardian, emergency, dependency, email, report_opt_in)。
-        勿改回「布尔列循环展开 + email 收尾」的写法——_BOOL_COLUMNS 以 report_opt_in
-        结尾、列清单以 email 在前，循环展开会把两列绑反（v2.0.0 回归实测踩过：
-        email 列存进 '1'，find_keys_by_email 永远查不到，STOP 退订静默失效）。
+        逐列显式排列，严格对齐 put() INSERT 的列清单：email 在前、report_opt_in
+        在后——循环展开会把两列绑反（email 列存进 '1'，退订回查静默失效）。
         """
 
         def col(name: str) -> Any:
@@ -144,18 +126,17 @@ class ProfileStore:
             self._conn.commit()
 
     def delete(self, key: str, *, reason: str = "user_delete") -> bool:
-        """删除画像（幂等，不泄露标识是否存在）。成功删除时落 data_deleted 审计。
+        """删除画像（幂等）。成功删除时落 data_deleted 审计。
 
-        reason 取值：user_delete（用户主动退出，《办法》第 19 条）/ retention_purge
-        （保留期到点清除，jobs/purge）——审计里区分「用户行权」与「系统履约」两种删除。
+        reason 取值：user_delete（用户主动退出）/ retention_purge（保留期到点清除，
+        jobs/purge）——审计里区分「用户行权」与「系统履约」。
         """
         with self._lock:
             cur = self._conn.execute("DELETE FROM profiles WHERE anon_key = ?", (key,))
             self._conn.commit()
         deleted = cur.rowcount > 0
         if deleted:
-            # 只在确有行被删时落审计：幂等重删（含不存在的键）不产生噪声事件，
-            # 也不泄露「该匿名标识是否存在」。
+            # 只在确有行被删时落审计：幂等重删不产生噪声事件，也不泄露键是否存在。
             db.record_audit(self._conn, self._lock, "data_deleted", key, {"reason": reason})
         return deleted
 
@@ -165,7 +146,7 @@ class ProfileStore:
             self._conn.commit()
 
     def find_keys_by_email(self, email: str) -> list[str]:
-        """按注册邮箱回查匿名标识（ADR-009 退信用：IMAP 收到 STOP 后据此退订）。
+        """按注册邮箱回查匿名标识（收信侧 STOP 退订用）。
 
         只做列上等值匹配，不写日志、不外泄；邮箱比较忽略大小写与首尾空白。
         """

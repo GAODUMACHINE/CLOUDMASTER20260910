@@ -158,7 +158,7 @@
     refresh();
   }
 
-  /* ---- SSE 消费（v2.0.0 P5）：fetch + ReadableStream 逐帧读取 ----
+  /* ---- SSE 消费：fetch + ReadableStream 逐帧读取 ----
      协议：事件以空行（\n\n）分隔，每帧取 'data: ' 前缀行拼装后 JSON.parse；
      缓冲区保留不完整尾部等下一帧；无 ReadableStream 的环境退回 r.text() 整段解析。 */
   function consumeSse(resp, onEvent) {
@@ -199,9 +199,9 @@
     return pump();
   }
 
-  /* ---- chat（v2.0.0 P5）：SSE 真流式优先，失败降级旧非流式（打字机模拟） ----
-     鉴权：Authorization: Bearer <profile_key>，body 只传 {"text"}（新契约）。
-     事件：token 逐段追加（真打字机；reduce-motion 聚齐后一次呈现）；reply=stub 降级单事件
+  /* ---- chat：SSE 真流式优先，失败降级非流式（打字机模拟） ----
+     鉴权：Authorization: Bearer <profile_key>，body 只传 {"text"}。
+     事件：token 逐段追加（真打字机；reduce-motion 聚齐后一次呈现）；reply=降级单事件
      整段呈现；held=L2 挂起（整段、无逐字动画，受理编号进横幅）；done=终态
      （risk/ticket/危机横幅/notices 逐条系统气泡）。降级只发生在「一个事件都没收到」时，
      避免中途断流后整轮重发给后端重复入账。 */
@@ -224,7 +224,7 @@
       }
     }
     function legacyChat(text, bubble) {
-      // 降级路径：保留 v1.x 非流式语义（本地打字机模拟），接口同样走 Bearer 新契约。
+      // 降级路径：非流式接口 + 本地打字机模拟，同样走 Bearer 契约。
       return fetch(BASE + '/api/chat', { method: 'POST', headers: chatHeaders(),
         body: JSON.stringify({ text: text }) }).
       then(function (r) {
@@ -283,7 +283,7 @@
             // 真打字机：按服务端节奏逐段追加；reduce-motion 时聚齐后由 reply/done 一次性呈现。
             if (!prefersReduced() && !shown) { bubble.textContent = acc; scrollChat(); }
           } else if (ev.type === 'reply') {
-            paint(ev.text || acc); // stub 降级单事件：整段呈现，不做逐字动画
+            paint(ev.text || acc); // 降级单事件：整段呈现，不做逐字动画
           } else if (ev.type === 'held') {
             seenHeld = true;
             paint(ev.reply || ''); // L2 挂起：整段呈现，无逐字动画
@@ -432,7 +432,7 @@
     loadResources().then(renderResources);
   }
 
-  /* ---- 情绪自评（3.1.3-7）：只呈现区间与建议动作，绝不展示分数 ---- */
+  /* ---- 情绪自评：只呈现区间与建议动作，绝不展示分数 ---- */
   function setupAssessment() {
     var host = $('assessmentForm');
     if (!host) { return; }
@@ -740,8 +740,7 @@
     });
   }
 
-  /* ---- 报告退订开关（v2.0.0 P5）：设置页疏导报告 block 的显式退订/再开启 ----
-     此前文案承诺「随时可退订」但界面上没有开关（功能对照表「已知缺口」）；现补齐：
+  /* ---- 报告退订开关：设置页疏导报告 block 的显式退订/再开启 ----
      GET /api/report/status/{key} 初始化，POST unsubscribe/resubscribe 切换；
      未注册（无 key）时按钮禁用。开关只影响投递，不删除任何已存数据。 */
   function setReportOpt(optIn) {

@@ -23,7 +23,7 @@
    恰在中文舒适区上限——勿加宽。
    ========================================================================== */
 
-/* 公共令牌见 common/tokens.css（v2.0.0 P5 统一配色）；本页 :root 做别名映射
+/* 公共令牌见 common/tokens.css；本页 :root 做别名映射
    + 页面私有系统（红线允许：间距/线条/暖纸/危机色只在本页消费）。 */
 :root{
   /* 天空（低饱和晨雾） */
@@ -269,7 +269,7 @@ h2{
   border:1px solid var(--hairline); border-radius:14px 14px 14px 6px; margin-right:14%;
   box-shadow:var(--shadow-contact), inset 0 1px 0 rgba(255,255,255,.5);
 }
-/* 系统通知气泡（v2.0.0 P5 终态 notices）：整条通栏的安静提示，弱于危机横幅 */
+/* 系统通知气泡（终态 notices）：整条通栏的安静提示，弱于危机横幅 */
 .bubble.ai.notice{
   align-self:stretch; max-width:none; margin-right:0;
   background:rgba(46,90,126,.06); border:1px solid rgba(46,90,126,.25);

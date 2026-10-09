@@ -1,6 +1,5 @@
-"""LLM 工厂（生产：qwen-flash，OpenAI 兼容协议接 DashScope；模型名见 config.settings）。
-测试一律注入 fake_chat_models，禁止触网。CM_STUB=1 时提供本地确定性替身 StubLLM
-（不触网、零额度），用于在未开通真实模型前跑通全流程。"""
+"""LLM 工厂：生产用 qwen-flash（OpenAI 兼容协议接 DashScope），CM_STUB=1 时用本地
+确定性替身 StubLLM（不触网、零额度）。测试一律注入 fake 模型。"""
 
 from __future__ import annotations
 
@@ -11,10 +10,10 @@ from .config import settings
 
 
 def create_llm() -> BaseChatModel:
-    """构造生产 LLM。密钥/base_url 全部来自环境注入，代码不硬编码。
+    """构造生产 LLM，密钥/base_url 全部来自环境注入。
 
-    streaming=True 使 invoke 期间即发 token 回调——web/sse.py 的 stream_mode="messages"
-    依赖它逐 token 下发（v2.0.0 P3 真 SSE，ADR-011 §3）。
+    streaming=True 使 invoke 期间即发 token 回调——web/sse.py 的
+    stream_mode="messages" 依赖它逐 token 下发。
     """
     if not settings.configured():
         raise RuntimeError("生产模型未配置：请提供 QWEN_API_KEY 与 QWEN_API_HOST/.env。测试请注入 fake LLM。")
@@ -28,17 +27,17 @@ def create_llm() -> BaseChatModel:
 
 
 class _StubReply:
-    """最小为鸭子对象：仅需 .content，符合图内 llm.invoke(...) -> obj.content 的用法。"""
+    """最小鸭子对象：仅需 .content，符合图内 llm.invoke(...) -> obj.content 的用法。"""
 
     def __init__(self, content: str) -> None:
         self.content = content
 
 
 class StubLLM:
-    """无真实模型/未开通额度时的确定性替身（CM_STUB=1）：不触网、零额度。
+    """无真实模型/未开通额度时的确定性替身：不触网、零额度。
 
-    用途：先在本地把「注册→聊天→危机→人工审核」全流程跑通；开通真实模型后切回 create_llm。
-    仅返回确定文案，不含诊断/处方/评判，符合禁区。
+    仅返回确定文案，不含诊断/处方/评判；用于在本地把
+    「注册→聊天→危机→人工审核」全流程跑通。
     """
 
     def invoke(self, message: object, *args: object, **kwargs: object) -> _StubReply:
@@ -46,16 +45,14 @@ class StubLLM:
         return _StubReply(self._decide(prompt))
 
     def _decide(self, prompt: str) -> str:
-        # 危机复核（CONFIRM_PROMPT）→ WATCH：**维持规则词表级别**（L2 保持 L2、L1 保持 L1）。
-        # v2.0.0 P2 修复：旧版恒回 SAFE 会把规则级 L2 一律降为 L1，stub 演示断掉最关键的
-        # L2 挂起→人工审核链路；也不回 DANGER（会把全部 L1 词误升 L2，演示环境误报泛滥）。
+        # 危机复核维持规则词表级别（回 WATCH 不升不降）：回 SAFE 会把规则级 L2 降级、
+        # 断掉 L2 挂起→人工审核链路；回 DANGER 会把全部 L1 词误升 L2。
         if "危机识别复核" in prompt:
             return "WATCH"
-        # 语义筛查（SCREEN_PROMPT）→ SAFE：不升级，完全交给规则词表判定
-        # （离线替身不承担语义召回，生产中由真实模型承担）。
+        # 语义筛查看作 SAFE：离线替身不承担语义召回，生产中由真实模型承担。
         if "语义筛查" in prompt:
             return "SAFE"
-        # 普通陪伴（「用户的话：…」）或科普（KNOWLEDGE_PROMPT「用户问题：…」）→ 确定性支持性回复
+        # 普通陪伴或科普 → 确定性支持性回复
         text = prompt.split("用户的话：", 1)[-1]
         if "用户问题：" in prompt:
             text = prompt.split("用户问题：", 1)[-1]
@@ -67,5 +64,4 @@ class StubLLM:
 
 
 def create_stub_llm() -> StubLLM:
-    """构造本地确定性替身（不触网、零额度），供 CM_STUB=1 时使用。"""
     return StubLLM()

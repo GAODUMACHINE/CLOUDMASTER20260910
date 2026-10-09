@@ -1,4 +1,4 @@
-"""RAG 检索可插拔契约（ADR-004）。"""
+"""RAG 检索可插拔契约。"""
 
 from __future__ import annotations
 

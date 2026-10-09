@@ -1,9 +1,7 @@
-"""knowledge 节点——心理科普（v0.4.0 RAG，ADR-004）。仅此处可写 citations。
-命中库内：必附引用(原文片段+来源)；库外：不编造来源，声明边界转专业资源。
+"""knowledge 节点：心理科普（RAG）。仅此处可写 citations。
 
-v2.0.0 P2 真增强：检索文档**进入 prompt**（旧版只把用户问题交给模型、正文自由生成、
-引用事后拼接，正文与引用可完全脱节，违背 ADR-004「回复必附引用」的实质意图）。
-现在模型只能依据检索到的参考资料作答，引用列表仍是逐字原文（不变）。
+命中库内：必附引用（原文片段+来源），检索文档进入 prompt——模型只能依据检索到的
+参考资料作答，正文与引用不会脱节；库外：不编造来源，声明边界转专业资源。
 """
 
 from __future__ import annotations
@@ -12,7 +10,7 @@ from typing import Any
 
 from langchain_core.messages import AIMessage
 
-from ..prompts import KNOWLEDGE_PROMPT  # 再导出：模板本体归 prompts.py
+from ..prompts import KNOWLEDGE_PROMPT
 
 __all__ = ["knowledge_node", "KNOWLEDGE_PROMPT", "OUT_OF_BOUNDARY"]
 

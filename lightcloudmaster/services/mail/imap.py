@@ -1,11 +1,7 @@
-"""IMAP 收件通道（ADR-009）：连接与拉取 UNSEEN，解析委托同包 parse。
+"""IMAP 收件通道：连接与拉取 UNSEEN，解析委托同包 parse。
 
-v2.0.0 P6：ImapInbox 自 lightcloudmaster/inbox.py 逐字迁入 services/mail（纯函数解析
-已拆至同包 parse.py；旧根模块降级为薄壳同名再导出）。
-
-红线：凭据经构造参数注入（生产由环境变量读出后传入），本模块不做任何持久化，
-也不在异常消息外记录凭据；默认只拉取 UNSEEN，避免重复处理；网络/认证失败抛
-InboxError（不静默返回空）。
+红线：凭据经构造参数注入，本模块不做任何持久化，也不在异常消息外记录凭据；
+默认只拉取 UNSEEN 避免重复处理；网络/认证失败抛 InboxError（不静默返回空）。
 """
 
 from __future__ import annotations

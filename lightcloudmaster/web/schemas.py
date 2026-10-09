@@ -1,9 +1,8 @@
-"""Pydantic 请求模型（v2.0.0 P3，自 web_app.py 迁入；ADR-011 §1）。
+"""Pydantic 请求模型。
 
-ChatReq 自 v2.0.0 起不再含 profile_key：匿名标识改经 Authorization: Bearer 传递
-（ADR-007「匿名 ID 即凭证」），请求体只剩 {"text"}；pydantic 默认忽略多余字段，
-旧前端多传的 profile_key 不报错但不再被读取。EmailConfirmReq 随 /api/email/confirm
-一并删除（处置表 #12）。红线：模型只描述请求形态，业务校验一律在 services/ 层。
+ChatReq 不含 profile_key：匿名标识经 Authorization: Bearer 传递，请求体只剩
+{"text"}；pydantic 默认忽略多余字段。红线：模型只描述请求形态，业务校验一律在
+services/ 层。
 """
 
 from __future__ import annotations

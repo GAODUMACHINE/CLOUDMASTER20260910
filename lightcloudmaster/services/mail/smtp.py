@@ -1,22 +1,15 @@
-"""邮件发送（ADR-009）：真实 SMTP 通道 + 产品级 HITL 确认。
-
-v2.0.0 P6：自 lightcloudmaster/mailer.py 逐字迁入 services/mail（旧根模块降级为薄壳
-同名再导出，既有 import 与测试不破）。本文件为发信链路的唯一实现。
+"""邮件发送：真实 SMTP 通道 + 产品级 HITL 确认。
 
 红线与隐私：
-- 未确认（decision != approve）或确认令牌不符，**绝不发送**，且不产生发送记录；
+- 未确认（decision != approve）或确认令牌不符，绝不发送，且不产生发送记录；
 - 凭据只经环境变量/.env 注入，绝不硬编码入库；
-- 发送记录只留收件地址/主题/时间，**不落邮件正文**（正文可能含报告内容）。
+- 发送记录只留收件地址/主题/时间，不落邮件正文。
 
-P6 修复：确认令牌比对改用 `secrets.compare_digest`（常数时间比较）。原
-`confirm_token != expected_token` 在首字符不同时即短路返回，比对耗时随匹配
-前缀长度单调增长，存在计时侧信道；compare_digest 使比对耗时与内容无关，
-攻击者无法据此逐字节猜令牌。
+确认令牌比对用 secrets.compare_digest（常数时间比较，防计时侧信道逐字节猜令牌）。
 
 通道设计：`Mailer(channel=...)` 可注入任意实现了 `send(message)` 的通道。
-- 缺省 `channel=None` → **不发送**（内存桩，返回 sent=False / 附带原因），不会静默假装成功；
-- `SmtpChannel` → 真实 SMTP（ssl / starttls）；
-- 测试注入 `RecordingChannel` 或自定义假通道。
+缺省 channel=None → 不发送（返回 sent=False 并附原因，不会静默假装成功）；
+SmtpChannel → 真实 SMTP（ssl / starttls）；测试可注入 RecordingChannel。
 """
 
 from __future__ import annotations
@@ -103,7 +96,7 @@ class SmtpChannel:
                     server.login(self.user, self.password)
                 server.send_message(msg)
         except (OSError, smtplib.SMTPException) as exc:
-            # 不吞异常：发送失败必须让调用方看到，绝不能让"未送达"被当成成功。
+            # 不吞异常：绝不能让"未送达"被当成成功。
             raise MailError(f"SMTP 发送失败：{exc}") from exc
         return {"sent": True, "message_id": msg["Message-ID"], "channel": self.security}
 

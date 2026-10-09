@@ -1,9 +1,9 @@
-"""情绪自评端点（v2.0.0 P3，功能对照表 #7）。
+"""情绪自评端点。
 
 GET /items 下发条目与四档选项（措辞自拟、不含分值，前端只回传 value）；
 POST /assessment 由 services.assessment.submit_assessment 计分并开案
-（urgent 工单带 source=assessment，供审核台专用闭环分支，修 409 死环）。
-红线：结果只呈现「区间 + 建议动作」，绝不输出分数诊断或病名（文案在服务/量表层）。
+（urgent 工单带 source=assessment，供审核台专用闭环分支）。
+红线：结果只呈现「区间 + 建议动作」，绝不输出分数诊断或病名。
 """
 
 from __future__ import annotations

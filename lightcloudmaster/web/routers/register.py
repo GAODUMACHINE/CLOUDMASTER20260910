@@ -1,8 +1,8 @@
-"""注册端点（v2.0.0 P3）：POST /api/register（处置表 #2，+协议签署留痕 P4）。
+"""注册端点：POST /api/register。
 
 年龄门 / 监护人信号 / 邮箱校验 / 保留期初始化 / 协议签署留痕全部在
 services.registration.register_profile（单点），本层只翻译错误与组装响应。
-红线：<14 岁数据不处理（RegistrationError → 400），匿名 ID 96 位熵由服务层生成。
+红线：<14 岁数据不处理（RegistrationError → 400）。
 """
 
 from __future__ import annotations
@@ -11,8 +11,6 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 
-# RegistrationError 与校验纯函数 register() 一起保留在 lightcloudmaster/registration.py 原位
-# （服务层只复用不迁移、也不再导出），异常自源头导入；register_profile 才是服务层入口。
 from ...registration import RegistrationError
 from ...services.registration import register_profile
 from ..deps import AppContext, get_ctx

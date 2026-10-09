@@ -1,4 +1,4 @@
-"""supervisor 节点——仅此处可写 next_agent / turn_count / agent_hops（ADR-001）。"""
+"""supervisor 节点——仅此处可写 next_agent / turn_count / agent_hops。"""
 
 from __future__ import annotations
 

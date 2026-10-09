@@ -1,16 +1,9 @@
-"""次日温和回访队列 DAL（v2.0.0 P7，ADR-003 / ADR-011 §5，TC-HITL-007）：followups 表。
+"""次日温和回访队列 DAL：followups 表。
 
-设计取舍：
-- 旧版 next_followup 只落图 state——进程重启即丢、审核台不可见。本队列把它落库：
-  approve 裁决时 enqueue（services.crisis_chain.enqueue_followup），到期由
-  jobs/followups.run_due 扫描交付。
-- 语义上 **done = 已交付审核台待办区，而非回访已完成**：回访本身是线下人工动作
-  （ADR-003 温和不打扰——系统不代打电话、不催办），系统职责是可见性而非执行。
-  审核台 GET /api/review/pending 的 followups 键即 delivered_recent 的直出。
-- 表列（db.py DDL）：id / ticket_id / anon_key / scheduled_at / kind / status——
-  无 note、无 done_at 列；本 DAL 不改 DDL（追加列须走迁移评审），故 mark_done 仅翻
-  状态、delivered_recent 暂不做时间过滤（done 即交付，量大由 LIMIT 截断）。
-- 红线：不落任何联系方式与对话内容；anon_key 仅用于值班员核对，不出现在用户侧。
+approve 裁决时 enqueue（services.crisis_chain.enqueue_followup），到期由
+jobs/followups.run_due 扫描交付。done = 已交付审核台待办区，而非回访已完成：
+回访本身是线下人工动作（系统不代打电话、不催办），系统职责是可见性而非执行。
+红线：不落任何联系方式与对话内容；anon_key 仅用于值班员核对。
 """
 
 from __future__ import annotations
@@ -55,8 +48,8 @@ class FollowupQueue:
         scheduled_at: str,
         kind: str = "次日温和回访",
     ) -> dict[str, Any]:
-        """入队一条回访（status=pending）。同工单重复入队不去重——approve→block→approve
-        的重开路径里旧条目已翻状态，新条目即最新计划；消费方按 id 独立处理。"""
+        """入队一条回访（status=pending）。同工单重复入队不去重——重开路径里旧条目
+        已翻状态，新条目即最新计划。"""
         with self._lock:
             cur = self._conn.execute(
                 "INSERT INTO followups (ticket_id, anon_key, scheduled_at, kind, status)"
@@ -116,7 +109,7 @@ class FollowupQueue:
         return self._row_of(row)
 
     def pending_count(self) -> int:
-        """待到期数量（队列水位观测）。"""
+        """待到期数量。"""
         with self._lock:
             row = self._conn.execute("SELECT COUNT(*) FROM followups WHERE status = 'pending'").fetchone()
         return int(row[0])
@@ -124,9 +117,8 @@ class FollowupQueue:
     def delivered_recent(self, *, days: int = 7) -> list[dict[str, Any]]:
         """已交付条目（status=done），新近优先，至多 50 条——审核台回访待办区数据源。
 
-        days 为保留的签名参数：表无 done_at 列无法按时间过滤（不改 DDL 的取舍，见
-        模块 docstring）；done 即「已交付待办区」，消费方需要更严窗口时可自行按
-        scheduled_at 截断。
+        days 为保留的签名参数：表无 done_at 列无法按时间过滤；需要更严窗口时可
+        自行按 scheduled_at 截断。
         """
         with self._lock:
             rows = self._conn.execute(

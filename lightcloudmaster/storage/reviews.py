@@ -1,24 +1,15 @@
-"""L2 人工审核台账（v2.0.0 存储层，计划书 3.2.3 三级危机分级与路由 / 3.3.1 危机干预协议）。
+"""L2 人工审核台账：review_cases / review_decisions 两表。
 
-对旧 lightcloudmaster/review_queue.py（JSONL 版）的 1:1 SQLite 移植：类名 / 方法签名 / 异常类型
-与中文文案 / 返回 dict 的键与值语义完全一致，调用方零改动切换。设计取舍：
-- 两表分工（DDL 见 storage/db.py）：review_cases 承载生命周期（status 单列翻转），
-  review_decisions 承载闭环结论明细（append-only）。旧实现靠「追加 resolved 行 + 读侧过滤
-  已闭环 ticket」表达闭环；新模型把「翻状态 + 写结论」放进**同一事务**原子完成，读侧无需
-  去重，也不存在「pending 行已被结论行闭环」的中间态。
-- 同一 thread 未决唯一：进程内靠共享连接锁串行；跨进程双登记由部分唯一索引
-  uq_review_pending_thread 在数据库层拦截，open_case 捕获 IntegrityError 后回滚重查、
-  返回既有案件——与旧实现「不重复登记、返回既有案件」语义一致。
-- 返回 dict 与旧 JSONL 记录同形：保留恒为 None 的 decision 键。v2.0.0 P4 起 source 列
-  进入返回契约（open_case / pending_for_thread / list_pending / get 的 dict 均带 source）：
-  "chat"（对话链路升级开案）/"assessment"（自评链路开案）——消费方（graph 闭环、审核台
-  展示）据此走 assessment 工单的专用闭环分支，不再靠 thread_id 前缀嗅探。
-- 读方法同样持锁：每个数据库文件进程内仅一连接（check_same_thread=False），跨线程共用
-  同一连接的游标必须串行。
-- 红线不变：台账只落判定依据（截 500）与摘要（截 200），**绝不落对话原文**；联系方式
-  （监护人/紧急联系人）不落台账，仅记录「已请求联络」这一动作。
+review_cases 承载生命周期（status 单列翻转），review_decisions 承载闭环结论明细
+（append-only）；「翻状态 + 写结论」在同一事务原子完成。同一 thread 未决唯一：
+进程内靠共享连接锁串行，跨进程双登记由部分唯一索引 uq_review_pending_thread 在
+数据库层拦截，open_case 捕获 IntegrityError 后回滚重查、返回既有案件。
 
-常量（选项表/词表）与异常类自旧模块原样复制，保持本模块自包含；旧模块 P3 才删，暂允许重复。
+source 列（chat/assessment）进入返回契约：消费方据此走 assessment 工单的专用
+闭环分支，不靠 thread_id 前缀嗅探。
+
+红线：台账只落判定依据（截 500）与摘要（截 200），绝不落对话原文；联系方式不落
+台账，仅记录「已请求联络」这一动作。
 """
 
 from __future__ import annotations
@@ -35,7 +26,7 @@ REVIEW_DECISIONS = {
     "block": "仅审计留痕，不发起联络",
 }
 
-# 审核台可选的联络对象（计划书 3.2.4：监护人/紧急联系人，仅未成年人必填、访问需授权）。
+# 审核台可选的联络对象（监护人/紧急联系人，仅未成年人必填、访问需授权）。
 CONTACT_KINDS = {
     "guardian": "监护人",
     "emergency": "紧急联系人",
@@ -45,7 +36,7 @@ CONTACT_KINDS = {
 
 LEDGER_SCHEMA_REQUIRED = ("ticket_id", "thread_id", "decision")
 
-# 工单来源词表（v2.0.0 P4 起进入返回契约）：chat=对话链路升级开案，assessment=自评链路开案。
+# 工单来源词表：chat=对话链路升级开案，assessment=自评链路开案。
 REVIEW_SOURCES = ("chat", "assessment")
 
 
@@ -58,7 +49,6 @@ class ReviewLedger:
 
     def __init__(self, path: str | None = None):
         self._path = db.resolve_db_path(path, "REVIEW_DB_PATH")
-        # 与旧实现一致：父目录不存在则先建（生产缺省 data/private/）。
         self._path.parent.mkdir(parents=True, exist_ok=True)
         self._conn, self._lock = db.connect(self._path)
 
@@ -68,7 +58,7 @@ class ReviewLedger:
 
     @staticmethod
     def _case_of_row(row: sqlite3.Row) -> dict[str, Any]:
-        """review_cases 行 → 旧 JSONL 开案记录同形 dict（decision 恒 None；source 自 P4 起进入契约）。"""
+        """review_cases 行 → 开案记录 dict（decision 未闭环时恒 None）。"""
         return {
             "ticket_id": row["ticket_id"],
             "thread_id": row["thread_id"],
@@ -97,7 +87,7 @@ class ReviewLedger:
         """登记待审案件。同一 thread 已有未决案件时不重复登记（返回既有案件）。
 
         source 标记开案链路（chat=对话升级 / assessment=自评 urgent），供审核台裁决时
-        选择闭环分支——自评 thread 不是图 thread，不能走图恢复（ADR-011 §4）。
+        选择闭环分支——自评 thread 不是图 thread，不能走图恢复。
         """
         if source not in REVIEW_SOURCES:
             raise ReviewError(f"不支持的工单来源: {source}")
@@ -109,7 +99,7 @@ class ReviewLedger:
             "risk_level": risk_level,
             "basis_level": basis_level,
             "basis_reason": basis_reason[:500],
-            # 仅摘要，不含对话原文（隐私硬约束）。
+            # 仅摘要，不含对话原文。
             "context_summary": context_summary[:200],
             "status": "pending",
             "source": source,
@@ -140,7 +130,7 @@ class ReviewLedger:
                 )
                 self._conn.commit()
             except sqlite3.IntegrityError:
-                # 并发撞 uq_review_pending_thread（跨进程双登记）：回滚本记录，重查返回既有。
+                # 并发撞 uq_review_pending_thread（跨进程双登记）：回滚重查返回既有。
                 self._conn.rollback()
                 existing = self.pending_for_thread(thread_id)
                 if existing is not None:

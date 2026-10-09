@@ -1,19 +1,17 @@
 [build-system]
-# 显式声明构建后端：Ubuntu 24.04 等新环境的隔离构建会用最新 setuptools，
-# 不声明则走旧式回退路径，行为随环境漂移。
+# 显式声明构建后端：新环境的隔离构建会用最新 setuptools，不声明则行为随环境漂移。
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "lightcloudmaster"
-version = "2.0.0"
+version = "2.1.0"
 description = "面向18-25岁青年的AI心理陪伴与疏导助手（不做诊断/用药建议）"
 requires-python = ">=3.11"
 dependencies = [
     "langgraph>=1.2",
     "langchain-core>=0.3",
     "langchain-openai>=0.2",
-    # v2.0.0 起为运行时硬依赖（web 层/服务进程/配置/检查点），不再留在 dev extra——
     # 生产 `pip install -e .` 必须可直接部署（deploy/bootstrap.sh 依赖这一点）。
     "fastapi>=0.110",
     "uvicorn>=0.30",
@@ -21,27 +19,9 @@ dependencies = [
     "langgraph-checkpoint-sqlite>=2",
 ]
 
-[project.optional-dependencies]
-dev = [
-    "ruff>=0.8",
-    "pytest>=8",
-    "pytest-asyncio>=0.24",
-    "pydantic-settings>=2",
-    "python-dotenv>=1",
-    "langgraph-checkpoint-sqlite>=2",
-    "fastapi>=0.110",
-]
-
-[dependency-groups]
-dev = [
-    "pytest>=8",
-    "ruff>=0.8",
-]
-
-# 包发现必须显式：仓库是扁平布局（lightcloudmaster/ + frontend/ + deploy/ 三个顶层目录），
-# 新版 setuptools 对多顶层目录拒绝自动猜测（报 "Multiple top-level packages
-# discovered in a flat-layout"）。只打包 lightcloudmaster；scripts/ 经 `python -m
-# scripts.run_jobs` 从仓库根目录运行（CWD 即在 sys.path），无需入包。
+# 仓库是扁平布局（lightcloudmaster/ + frontend/ + deploy/ + mobile/），setuptools 对
+# 多顶层目录拒绝自动猜测，只打包 lightcloudmaster；scripts/ 经
+# `python -m scripts.run_jobs` 从仓库根目录运行，无需入包。
 [tool.setuptools.packages.find]
 include = ["lightcloudmaster*"]
 
@@ -51,12 +31,3 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W", "UP", "B"]
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-pythonpath = ["."]
-addopts = "-q --strict-markers -m \"not eval\""
-markers = [
-    "safety: 危机场景回归，失败禁止合并",
-    "eval: 慢速评估归档，日常不跑",
-]

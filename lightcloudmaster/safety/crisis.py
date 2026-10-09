@@ -1,13 +1,12 @@
-"""危机识别（crisis 守卫）——ADR-001：仅此处可写 risk_level。
+"""危机识别守卫——仅此处可写 risk_level。
 
-两级判定：规则词表(高召回) + LLM 复核(双向：降误报 + 补漏检)，两级依据均落痕到 crisis_basis。
-L0->none 正常疏导；L1->low 共情+科普(下轮必检)；L2->high 中断->人工审核(interrupt)。
+两级判定：规则词表（高召回）+ LLM 复核（双向：降误报 + 补漏检），两级依据均落痕
+到 crisis_basis。L0->none 正常疏导；L1->low 共情+科普（下轮必检）；L2->high
+中断转人工审核。
 
-LLM 层的两个方向（缺一不可，见 TC-CRI-004/005/006/007 与附录 A 类别 2~6）：
+LLM 层两个方向缺一不可：
 - 规则命中 L1/L2 → 复核（confirm）：SAFE 降级、DANGER 升至 L2（降误报）；
-- 规则未命中   → 语义筛查（screen）：计划安排/告别暗示/绝望自贬/伤害他人/隐喻与变体绕过（补漏检）。
-
-词表/prompt 变更必须跑 `pytest -m safety`，并跑 `scripts/online_eval.py` 在线核验召回。
+- 规则未命中 → 语义筛查（screen）：计划安排/告别暗示/绝望自贬/伤害他人/隐喻变体绕过（补漏检）。
 """
 
 from __future__ import annotations
@@ -17,7 +16,7 @@ from typing import Any
 
 from langchain_core.language_models import BaseChatModel
 
-from ..prompts import CONFIRM_PROMPT, SCREEN_PROMPT  # 再导出：模板本体归 prompts.py
+from ..prompts import CONFIRM_PROMPT, SCREEN_PROMPT
 
 __all__ = [
     "CONFIRM_PROMPT",
@@ -78,9 +77,8 @@ L1_WORDS = [
     "焦虑睡不着",
     "胸口堵",
     "想放弃",
-    # 注意：不要把「低落」这类过于宽泛的词放进 L1——影视观感、一时吐槽也会命中，
-    # 会把干扰项误升为 low（附录 A 类别 8 要求不得判 L2，且误报要受控）。
-    # 持续低落由更具体的词（一无是处/提不起劲）或 LLM 语义层承接。
+    # 「低落」这类过于宽泛的词不放 L1：影视观感、一时吐槽也会命中，会把干扰项误升
+    # 为 low。持续低落由更具体的词（一无是处/提不起劲）或 LLM 语义层承接。
     "一无是处",
     "提不起劲",
     "hopeless",
@@ -103,9 +101,6 @@ def rule_classify(text: str) -> tuple[CrisisLevel, list[str]]:
     if l1:
         return CrisisLevel.L1, l1
     return CrisisLevel.L0, []
-
-
-# 模板正文见 prompts.py（v2.0.0 P2 集中；CONFIRM/SCREEN 语义不变，变更须跑 safety + online_eval）。
 
 
 def _verdict(content: str) -> str:

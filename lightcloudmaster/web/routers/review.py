@@ -1,15 +1,8 @@
-"""人工审核台端点（ADR-003/ADR-008/ADR-010；v2.0.0 P3 鉴权改 Authorization header）。
+"""人工审核台端点（鉴权经 Authorization header，全部走 require_reviewer）。
 
-- GET /review/pending 新增 followups 键（ADR-011 §5 / P7 回访待办区数据源）：
-  delivered_recent(days=7)；followups 队列未启用（None）时返回空列表，前端照常渲染。
-- POST /review/decision 双分支（ADR-011 §4，修自评工单 409 死环）：chat 源走「图恢复」
-  （三重校验逐字保留：会话存在 → 仍在中断态 → 恢复后必须有审计，否则不许闭环）；
-  assessment 源**不碰图**——自评 thread（assessment:xxxx）不是图 thread，
-  update_state+invoke(None) 必然扑空，由服务层直接构造同形 audit_log/contact_log/
-  next_followup（联络仍为 noop 桩，ADR-003 红线不变）。
-- POST /inbox/poll：IMAP 拉取（通道未配置 503；InboxError → 502，绝不吞异常）。
-
-红线：全部端点经 require_reviewer；裁决闭环成功后的回访入队为尽力而为，不改变响应契约。
+POST /review/decision 双分支：chat 源走「图恢复」（会话存在 → 仍在中断态 →
+恢复后必须有审计，否则不许闭环）；assessment 源不碰图——自评 thread 不是图 thread，
+由服务层直接构造同形审计/联络/回访。回访入队为尽力而为，不改变响应契约。
 """
 
 from __future__ import annotations
@@ -18,7 +11,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from ...inbox import InboxError
+from ...services.mail.parse import InboxError
 from ...services.crisis_chain import assessment_review_effects, enqueue_followup
 from ...services.mail.ingest import poll_inbox
 from ...storage.reviews import CONTACT_KINDS, REVIEW_DECISIONS, ReviewError
@@ -39,8 +32,7 @@ router = APIRouter(prefix="/api", tags=["review"])
 def _enqueue_followup(
     ctx: AppContext, ticket_id: str, anon_key: str, followup: dict[str, Any] | None
 ) -> None:
-    """approve 裁决产生的次日回访入队（ADR-011 §5）：无回访计划（block 裁决）或
-    followups 队列未启用（None）时跳过——回访是可见性职责而非执行职责（ADR-003）。"""
+    """approve 裁决产生的次日回访入队；无回访计划或队列未启用时跳过。"""
     if ctx.followups is None or followup is None:
         return
     enqueue_followup(ctx.followups, ticket_id=ticket_id, anon_key=anon_key, followup=followup)
@@ -51,7 +43,7 @@ def api_review_pending(
     _auth: Annotated[None, Depends(require_reviewer)],
     ctx: Annotated[AppContext, Depends(get_ctx)],
 ) -> dict[str, Any]:
-    """待审队列 + 选项词表 + 近 7 日已交付回访（P7 回访待办区数据源）。"""
+    """待审队列 + 选项词表 + 近 7 日已交付回访。"""
     followups = ctx.followups.delivered_recent(days=7) if ctx.followups is not None else []
     return {
         "pending": ctx.review_ledger.list_pending(),
@@ -96,8 +88,8 @@ def api_review_decision(
     thread_id = case.get("thread_id") or ""
 
     if case.get("source") == "assessment":
-        # assessment 源：自评 thread 不是图 thread，走「图恢复」必然 409 死环（P4 修复）。
-        # 服务层直接构造与图恢复同形的审计/联络/回访，台账照常闭环、审计照常留痕。
+        # 自评 thread 不是图 thread，走「图恢复」必然 409 死环；
+        # 服务层直接构造与图恢复同形的审计/联络/回访，台账照常闭环。
         effects = assessment_review_effects(
             decision=req.decision,
             reviewer=req.reviewer or "unassigned",
@@ -121,9 +113,8 @@ def api_review_decision(
         }
 
     cfg = {"configurable": {"thread_id": thread_id}}
-    # 裁决必须真正驱动图恢复：先确认该 thread 仍停在 human_review 中断点。
-    # 否则（会话已被删除 / 已恢复推进）update_state+invoke(None) 不会经过 human_review，
-    # 会返回空 audit_log 却报 ok=True，并让台账闭环——值班员会误以为已处理。
+    # 裁决必须真正驱动图恢复：先确认该 thread 仍停在 human_review 中断点，
+    # 否则 update_state+invoke(None) 不会经过 human_review，返回空 audit_log 却报成功。
     state = _thread_state(ctx.graph, thread_id)
     if not state:
         raise HTTPException(
@@ -147,7 +138,7 @@ def api_review_decision(
     except ReviewError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     if not resumed.get("audit_log"):
-        # 兜底：图恢复未落审计，说明链路没闭环，不得静默成功。
+        # 图恢复未落审计说明链路没闭环，不得静默成功。
         raise HTTPException(
             status_code=500,
             detail="审核结论未写入审计（图恢复异常），工单保持未闭环，请复核后再试",

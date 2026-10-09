@@ -1,14 +1,9 @@
-"""危机 L2 人工审核链路（v0.3.0 起，ADR-003；v2.0.0 P7 自根模块迁入 services）。
+"""危机 L2 人工审核链路：审计落痕 + 联络桩（不触真实）+ 次日温和回访。
 
-审计落痕 + 联络桩（不触真实）+ 次日温和回访。红线：测试一律用虚构档案 A1~A7，
-绝不影响真实联络/热线；转真实联络须单独评审（ADR-003/ADR-010 待办）。
-
-v2.0.0 P7 新增两件事（ADR-011 §5）：
-- enqueue_followup：approve 裁决产生的次日回访**落库**（旧版只落图 state、进程重启
-  即丢且审核台不可见）；队列在 storage.followups，交付执行器在 jobs.followups。
-- assessment_review_effects：自评工单（source=assessment）裁决的等效副作用——自评
-  thread 不是图 thread，无法走图恢复（ADR-011 §4），由本函数直接构造与图恢复
-  同形的 audit_log / contact_log / next_followup，web 层据此返回同形响应。
+红线：联络为 noop 桩，绝不发起真实联络/热线；转真实联络须单独评审。
+enqueue_followup 把 approve 裁决产生的次日回访落库（队列在 storage.followups，
+交付执行器在 jobs.followups）；assessment_review_effects 为自评工单裁决构造
+与图恢复同形的副作用（自评 thread 不是图 thread，不能走图恢复）。
 """
 
 from __future__ import annotations
@@ -17,7 +12,6 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 AUDIT_REVIEWER_FICTION = "HUMAN-REVIEW-A1"  # 虚构审核标识，非真实个人
-
 
 class ContactService:
     """联络桩：默认 enabled=False 只写 noop 审计，不发起真实联络。"""
@@ -63,7 +57,7 @@ def handle_review(
 ) -> dict[str, Any]:
     """L2 人工审核恢复处理：返回 {audit_log, contact_log, next_followup}。
 
-    图内 human_review 节点消费本函数（签名与返回形态绝不能变，ADR-003 契约）。
+    图内 human_review 节点消费本函数，签名与返回形态不能变。
     """
     cs = contact_service or ContactService()
     result: dict[str, Any] = {"audit_log": [], "contact_log": [], "next_followup": None}
@@ -84,13 +78,11 @@ def handle_review(
 def enqueue_followup(
     queue: Any, *, ticket_id: str, anon_key: str, followup: dict[str, Any] | None
 ) -> dict[str, Any] | None:
-    """把裁决产生的回访计划落入持久队列（P7）。
+    """把裁决产生的回访计划落入持久队列。
 
     followup 为 None（block 裁决无回访）时直接返回 None；否则入队并返回队列条目
-    （含 id / status=pending / scheduled_at / kind）。旧版 next_followup 只落图 state、
-    进程重启即丢；落库后 jobs/followups.run_due 到期交付到审核台待办区
-    （done=已交付，回访本身是线下人工动作——ADR-011 §5 语义）。队列 Duck 类型即
-    storage.followups.FollowupQueue 的 enqueue 子集，测试可注入桩。
+    （含 id / status=pending / scheduled_at / kind）。落库后 jobs/followups.run_due
+    到期交付到审核台待办区。队列鸭子类型即 FollowupQueue 的 enqueue 子集。
     """
     if followup is None:
         return None
@@ -105,13 +97,12 @@ def enqueue_followup(
 def assessment_review_effects(
     *, decision: str, reviewer: str, contact_kind: str, basis: dict[str, Any]
 ) -> dict[str, Any]:
-    """自评工单（source=assessment）裁决的等效副作用（P4 修 409 死环，ADR-011 §4）。
+    """自评工单（source=assessment）裁决的等效副作用。
 
-    自评 thread（assessment:xxxx）不是图 thread，update_state+invoke(None) 必然扑空、
-    工单永远无法闭环；本函数按 handle_review 的同构逻辑直接构造审计/联络/回访：
-    联络仍为 noop 桩（ADR-003 红线不变），返回形态与图 human_review 恢复后的 state
-    键一致（audit_log / contact_log / next_followup），web 层据此返回与 chat 源
-    裁决同形的响应。
+    自评 thread 不是图 thread，update_state+invoke(None) 必然扑空、工单永远无法
+    闭环；本函数按 handle_review 的同构逻辑直接构造审计/联络/回访，返回形态与图
+    human_review 恢复后的 state 键一致（audit_log / contact_log / next_followup），
+    web 层据此返回与 chat 源裁决同形的响应。
     """
     cs = ContactService()
     result: dict[str, Any] = {"audit_log": [], "contact_log": [], "next_followup": None}

@@ -1,20 +1,16 @@
-"""真 token SSE 流式（v2.0.0 P3，ADR-011 §3 / 功能对照表 #3，TC-STREAM-001）。
+"""真 token SSE 流式。
 
-旧端点是「整段回复伪装成流」的伪流式：先 invoke 跑完整轮再把结果一次性包一个
-`data: ` 事件。本模块改 `graph.stream(..., stream_mode="messages")` 逐 token 下发，
-事件协议 `data: {"type": "token"|"reply"|"held"|"done", ...}`（JSON；旧测试只锚定
-`"data: "` 前缀与 text/event-stream，协议升级不破坏）。
+`graph.stream(..., stream_mode="messages")` 逐 token 下发，事件协议
+`data: {"type": "token"|"reply"|"held"|"done", ...}`（JSON）。
 
 设计取舍：
 - 选 stream_mode="messages" 而非给模型注入回调：messages 模式天然给出「谁在说话」
   （meta.langgraph_node），节点白名单 {empathic, knowledge} 据此滤掉 crisis 复核 /
   语义筛查的模型输出——判定理由只给审核台值班员，绝不发给用户。
 - 零 token 即降级：真模型（ChatOpenAI streaming=True）invoke 期间发 token 回调，
-  StubLLM / 测试 duck 替身没有回调 → 一个 token 都收不到时自动降级为单个 reply
-  事件整段下发。无需预判模型类型，这正是选 messages 模式的第二个原因。
-- 挂起检查前置（修 L2 绕过）：旧 stream 端点完全没有挂起检查，L2 待审期间 POST 会
-  推进图、把工单变成「中断态已失效」而永远无法闭环——与 ADR-010 修过的 /api/chat
-  同型缺陷。检查实现与 /api/chat 共用 web/deps（单点化）。
+  StubLLM 等替身没有回调 → 一个 token 都收不到时自动降级为单个 reply 事件整段下发。
+- 挂起检查前置：L2 待审期间 POST 若推进图，工单会变成「中断态已失效」而永远无法
+  闭环；检查实现与 /api/chat 共用 web/deps（单点化）。
 
 红线：白名单外的 chunk 一律丢弃；挂起期间绝不推进图（仍留痕供审核台查看）。
 """
@@ -51,9 +47,8 @@ def stream_response(ctx: AppContext, profile_key: str, text: str) -> StreamingRe
     """构造 /api/chat/stream 的流式响应（同步生成器即可，FastAPI 支持迭代器）。"""
 
     def gen():
-        # 挂起检查前置：已有待审工单（thread 停在 human_review）时绝不推进图，否则图会
-        # 执行 human_review(decision=pending) 一路走到 END，把工单变成「中断态已失效」
-        # 而永远无法闭环——等于用户发一条非危机消息就能绕过人工审核（L2 绕过修复）。
+        # 挂起检查前置：已有待审工单（thread 停在 human_review）时绝不推进图，否则
+        # 图会一路走到 END，把工单变成「中断态已失效」而永远无法闭环。
         if _awaiting_human_review(ctx.graph, profile_key):
             _append_user_message(ctx.graph, profile_key, text)  # 留痕供审核台，不推进图
             pending = ctx.review_ledger.pending_for_thread(profile_key) or {}
@@ -73,8 +68,8 @@ def stream_response(ctx: AppContext, profile_key: str, text: str) -> StreamingRe
             return
 
         cfg = {"configurable": {"thread_id": profile_key}}
-        # 手工构造与 services.session.service_turn 完全相同的输入（最小画像注入 user_profile，
-        # 图内只读）。不能复用 service_turn：那会先 invoke 整轮再回放，流式退化成伪流式。
+        # 手工构造与 service_turn 相同的输入（最小画像注入 user_profile，图内只读）。
+        # 不能复用 service_turn：那会先 invoke 整轮再回放，流式退化成伪流式。
         payload = {"messages": [HumanMessage(text)], "user_profile": ctx.store.get(profile_key) or {}}
         full_text = ""
         for chunk, meta in ctx.graph.stream(payload, cfg, stream_mode="messages"):
@@ -94,11 +89,11 @@ def stream_response(ctx: AppContext, profile_key: str, text: str) -> StreamingRe
             yield _sse({"type": "held", "reply": REVIEW_HOLD_REPLY, "escalation": escalation})
             yield _sse({"type": "done", **chat_payload(ctx, profile_key, final, True, escalation)})
         elif not full_text:
-            # 零 token = 无 token 回调的模型（StubLLM / 测试替身）：降级单事件整段下发。
+            # 零 token = 无 token 回调的模型（StubLLM 等）：降级单事件整段下发。
             yield _sse({"type": "reply", "text": _reply_of(final.get("messages") or [])})
             yield _sse({"type": "done", **chat_payload(ctx, profile_key, final, False, escalation)})
         else:
-            # 正常流式：done 里仍带完整 reply 字段——前端可不组装 token 流、只消费 done 降级渲染。
+            # done 里仍带完整 reply 字段——前端可不组装 token 流、只消费 done 降级渲染。
             yield _sse({"type": "done", **chat_payload(ctx, profile_key, final, False, escalation)})
 
     return StreamingResponse(

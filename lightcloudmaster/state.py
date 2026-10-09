@@ -1,6 +1,7 @@
-"""AgentState（LangGraph TypedDict）——schema 须经 ADR 评审。
-- ADR-001：基础字段 + 守卫顺序
-- ADR-003：audit_log / contact_log / next_followup（human_review 唯一写）
+"""AgentState（LangGraph TypedDict）：全系统的字段契约。
+
+写入约束：next_agent/turn_count/agent_hops 仅 supervisor 可写，risk_level 仅 crisis，
+audit_log/contact_log/next_followup 仅 human_review，usage_meta/turn_notices 仅 time_guard。
 """
 
 from __future__ import annotations
@@ -22,8 +23,7 @@ class AgentState(TypedDict, total=False):
     usage_meta: dict[str, Any]
     crisis_basis: dict[str, Any]
     agent_hops: int
-    # 当轮非阻断通知（time_guard 唯一写，覆盖写无跨轮残留）：
-    # [{"kind": disclosure|reminder|limit_close, "text": ...}]，P3 起随 SSE notice 事件下发。
+    # 当轮非阻断通知（time_guard 唯一写）：[{kind: disclosure|reminder|limit_close, text}]
     turn_notices: list[dict[str, Any]]
     review_decision: str  # pending / approve / block
     audit_log: Annotated[list[dict[str, Any]], operator.add]

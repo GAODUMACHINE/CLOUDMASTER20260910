@@ -1,6 +1,6 @@
 /* LightCloudMaster 人工审核台（值班前端）
    接口：GET /api/review/pending · GET /api/review/{ticket} · POST /api/review/decision
-   鉴权（v2.0.0 P5）：令牌改走 Authorization: Bearer 头（不进 URL / 不进访问日志）。
+   鉴权：令牌走 Authorization: Bearer 头（不进 URL / 不进访问日志）。
    安全：令牌只放 sessionStorage（不进 localStorage）；所有服务端内容一律 textContent 渲染，
         绝不使用 innerHTML，避免上下文里的用户输入造成 XSS。
    回访待办：队列接口附带 followups（到期回访只读交付；回访为线下人工动作，不在系统留痕），
@@ -23,7 +23,7 @@
   function setMsg(id, text) { var n = $(id); if (n) { n.textContent = text || ''; } }
 
   function api(path, init) {
-    // v2.0.0 P5：令牌从 query 迁到 Authorization 头——query 会进网址栏、访问日志与浏览器历史。
+    // 令牌走 Authorization 头——query 会进网址栏、访问日志与浏览器历史。
     var opts = init || {};
     var headers = {};
     var k;
@@ -109,7 +109,7 @@
     });
   }
 
-  /* ---------- 回访待办（v2.0.0 P5）：到期回访只读交付，线下动作不在系统留痕 ---------- */
+  /* ---------- 回访待办：到期回访只读交付，线下动作不在系统留痕 ---------- */
   function renderFollowups(list) {
     var ul = $('followupList');
     if (!ul) { return; }

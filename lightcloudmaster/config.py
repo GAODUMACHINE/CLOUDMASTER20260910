@@ -12,30 +12,29 @@ class Settings(BaseSettings):
 
     qwen_api_key: str = ""
     qwen_api_host: str = ""
-    # 生产默认 qwen-flash：首 token P50≈0.3s，满足 TC-PERF-001（≤2s）。
-    # qwen3.5-flash 为思考模型（实测首 token≈14s），仅在明确需要推理质量时手动切换。
+    # 生产默认 qwen-flash：首 token P50≈0.3s。qwen3.5-flash 为思考模型（首 token≈14s），
+    # 仅在明确需要推理质量时手动切换。
     qwen_model: str = "qwen-flash"
     qwen_base_url: str = ""
-    # CM_STUB=1 -> 用本地确定性 stub 模型跑通全流程（零额度/不触网），真实模型开通后再取消
+    # CM_STUB=1 -> 本地确定性替身模型（零额度/不触网），用于演示与本地演练
     cm_stub: bool = False
-    # 人工审核台访问令牌：为空则审核台一律 403（默认不开放）。仅经环境变量/.env 注入，绝不硬编码。
+    # 审核台访问令牌：为空则审核台一律 403（默认不开放）
     cm_reviewer_token: str = ""
 
-    # ---- 邮件（ADR-009）：全部经环境变量/.env 注入，绝不硬编码；为空则邮件通道关闭 ----
-    # 发信（SMTP）：系统侧账号，用于发送疏导报告与人工联络
+    # ---- 邮件：全部经环境变量/.env 注入；为空则对应通道如实关闭 ----
+    # 发信（SMTP）：发送疏导报告与人工联络
     smtp_host: str = ""
     smtp_port: int = 465
     smtp_user: str = ""
     smtp_password: str = ""
     smtp_from: str = ""  # 缺省回退到 smtp_user
     smtp_security: str = "ssl"  # ssl / starttls / plain（plain 仅本地调试）
-    # 收信（IMAP）：系统侧收件账号，用于接收回信/退信/退订
+    # 收信（IMAP）：接收回信/退信/退订
     imap_host: str = ""
     imap_port: int = 993
     imap_user: str = ""
     imap_password: str = ""
     imap_folder: str = "INBOX"
-    # 报告发件人显示名与主题前缀（收信侧据此识别回信归属）
     mail_from_name: str = "LightCloudMaster 拾光云上"
 
     @property

@@ -1,17 +1,11 @@
-"""time_guard 图入口守卫（前置纯规则，不调用任何模型）。
+"""time_guard 图入口守卫（前置纯规则，不调用任何模型）。仅此处可写 usage_meta。
 
-仅此处可写 usage_meta（ADR-001）。提示写入 messages；轮级通知同时写 turn_notices。
-
-v2.0.0 P2 三项修复：
-- **fired 拆分**：limit_close（未成年满 1h / 全员满 2h 收尾）整轮短路（不进子 Agent）；
-  disclosure（依赖/AI 披露）与 reminder（50 分钟预提醒）**不短路**——提示照发，用户当轮
-  仍得到疏导回复（方案原意是"弹窗提示"，旧版一次性披露也整轮吞掉回复属缺陷）。
-- **当日会话语义**：session_started_at 与 last_fired_date 均按 Asia/Shanghai 日历日计——
-  跨天首条消息重置会话起点并清预提醒标记（修复"次日未成年人第一条消息即命中满 1 小时"的
-  跨天污染），当日已收尾则不重复触发、次日自然恢复。
-- **轮生命周期锚点**：本节点每轮 update 重置 agent_hops=0。每轮必经 START→time_guard
-  单点收敛；L2 恢复（invoke(None) 自 human_review 续跑）不重跑本节点，hops 不被误清——
-  MAX_AGENT_HOPS 恢复"单轮防死循环"语义（旧版跨轮累计导致每 thread 第 4 轮起永久无回复）。
+- limit_close（未成年满 1h / 全员满 2h 收尾）整轮短路，不进子 Agent；
+  disclosure（依赖/AI 披露）与 reminder（50 分钟预提醒）不短路，提示照发，
+  用户当轮仍得到疏导回复。
+- 「当日」按 Asia/Shanghai 日历日计：跨天首条消息重置会话起点并清预提醒标记，
+  当日已收尾则不重复触发、次日自然恢复。
+- 本节点每轮重置 agent_hops=0（单轮防死循环语义）；L2 恢复不重跑本节点，hops 不被误清。
 """
 
 from __future__ import annotations
@@ -23,18 +17,18 @@ MINOR_PRE_MIN = 50
 MINOR_CLOSE_MIN = 60
 ALL_LONG_MIN = 120
 
-# 依赖倾向自动识别（计划书 3.1.3 第 10 条：检测「高频连续使用」）。
+# 依赖倾向自动识别：检测「高频连续使用」。
 DEP_WINDOW_HOURS = 24
 DEP_FREQ_THRESHOLD = 8
 
 # 「当日」是本地概念（用户所处的日历日），非 UTC 日。
 # Asia/Shanghai 自 1991 年后无夏令时，恒为 UTC+8——用固定偏移而非 zoneinfo：
-# Windows 无系统 tz 数据库，zoneinfo 需额外安装 tzdata 包（违反零新增依赖红线），
-# 而本系统全部时间戳均产生于 2026 年后，固定 +8 与 IANA 库完全等价（取舍记入 ADR-011）。
+# Windows 无系统 tz 数据库，zoneinfo 需额外装 tzdata（违反零新增依赖约束），
+# 固定 +8 与 IANA 库在本系统的时间范围内完全等价。
 LOCAL_TZ = timezone(timedelta(hours=8), name="Asia/Shanghai(+08:00)")
 
 # 通知种类（turn_notices[].kind）：disclosure=AI 披露 / reminder=预提醒（均不阻断），
-# limit_close=收尾（阻断）。P3 起由 SSE notice 事件下发前端。
+# limit_close=收尾（阻断）。由 SSE notice 事件下发前端。
 NOTICE_DISCLOSURE = "disclosure"
 NOTICE_REMINDER = "reminder"
 NOTICE_LIMIT_CLOSE = "limit_close"
@@ -152,10 +146,8 @@ def time_guard_node(state: dict[str, Any], now: datetime | None = None) -> dict[
     result = evaluate(state.get("usage_meta") or {}, state.get("user_profile") or {}, clock)
     update: dict[str, Any] = {
         "usage_meta": result["usage_meta"],
-        # 当轮通知（覆盖写：无跨轮残留，天然当轮语义）；P3 起随 SSE notice 事件下发。
-        "turn_notices": result["notices"],
-        # 轮生命周期锚点：重置防死循环计数（见模块 docstring）。
-        "agent_hops": 0,
+        "turn_notices": result["notices"],  # 覆盖写，无跨轮残留
+        "agent_hops": 0,  # 轮生命周期锚点：重置防死循环计数
     }
     if result["messages"]:
         from langchain_core.messages import AIMessage

@@ -1,6 +1,6 @@
-"""单 Agent ReAct（v0.1.0 功能承载）。text 风格决策协议：输出以 `TOOL:` 开头则调用工具并进入下一轮，
-否则视为最终答案。受 max_steps 上限保护（防死循环，ADR-001 递归上限），超出用兜底回复。
-prompt 禁区：不诊断/不开药/不评判。测试一律注入 fake LLM，禁止触网。"""
+"""单 Agent ReAct：text 风格决策协议——输出以 `TOOL:` 开头则调用工具并进入下一轮，
+否则视为最终答案。受 max_steps 上限保护（防死循环），超出用兜底回复。
+prompt 禁区：不诊断/不开药/不评判。"""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from typing import Any
 from .prompts import (
     NO_TOOL_MINOR_PROMPT,
     NO_TOOL_PROMPT,
-    REACT_PROMPT,  # 再导出：既有 import 路径（含文档引用）不破，模板本体归 prompts.py
+    REACT_PROMPT,
 )
 
 __all__ = [
@@ -52,7 +52,7 @@ def react_agent(
 
     `tools` 为空（empathic 节点的情形）时改用 NO_TOOL_PROMPT：不再宣传 TOOL 协议，
     避免真实模型反复调用不存在的工具、白跑满 max_steps 才落到兜底话术。
-    `minor_mode=True`（未成年用户）时用收紧模板（方案 4.3.7-4，见 prompts.py）。
+    `minor_mode=True`（未成年用户）时用收紧模板。
     """
     tools = tools or {}
     if tools:
@@ -74,7 +74,7 @@ def react_agent(
             else:
                 try:
                     observation = fn(arg.strip())
-                except Exception as exc:  # noqa: BLE001  -- 工具容错，避免单次异常打断整个会话
+                except Exception as exc:  # noqa: BLE001 -- 工具容错，单次异常不打断整个会话
                     observation = TOOL_ERROR.format(exc=exc)
             logger.warning("ReAct 收到 TOOL 调用但无匹配工具 name=%r，已回注观察继续", name)
             prompt = prompt + f"\n观察：{observation}"

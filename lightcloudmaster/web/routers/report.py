@@ -1,4 +1,4 @@
-"""疏导报告端点（ADR-009；v2.0.0 P3 起业务规则全部在 services/report）。
+"""疏导报告端点：业务规则全部在 services/report。
 
 草稿生成（不发送）→ 前端二次确认（一次一密令牌 + opt-in + 通道就绪）→ SMTP 发送 →
 退订/再订阅。本层只做错误翻译：ReportServiceError 携带 (status_code, detail) 原样

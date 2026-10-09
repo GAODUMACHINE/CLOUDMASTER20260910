@@ -1,24 +1,16 @@
-"""统一 SQLite 存储底座（v2.0.0 存储层，ADR-012 前置实现）。
+"""统一 SQLite 存储底座。
 
-设计要点（重写计划 §15b.3/§16）：
-- 业务库 business.db 与 LangGraph checkpoint 库（lightcloudmaster.sqlite3）**分文件**：
-  schema 所有权、数据形态、备份/迁移节奏、保留期治理四者皆不同，互不干扰。
-- 连接模型：每个数据库文件每进程一连接（check_same_thread=False）+ 每连接一把 RLock
-  串行化——与 SqliteSaver 同构；PRAGMA WAL + busy_timeout=5000 + foreign_keys=ON。
-- **唯一碰盘原则**：除 checkpoint 外一切业务持久化经本包；services/web 不直接开文件。
-- 路径收口：全部 DAL 经 `resolve_db_path()` 解析路径（显式参数 → 各自环境变量 →
-  BUSINESS_DB_PATH → data/private/business.db），测试隔离机制（conftest 重定向
-  环境变量到 tmp_path）保持不变。
-- audit_events 为 append-only：触发器在库级禁止 UPDATE/DELETE（防篡改兜底）。
-- review_cases 部分唯一索引 `UNIQUE(thread_id) WHERE status='pending'`：
-  同一 thread 未闭环不重复开案——跨进程双登记也被数据库层拦截。
-
-DDL 覆盖 §16 全部 13 表 + resources（§16 清单遗漏的转介资源台账，旧代码实有
-ResourceStore，补入集中 DDL）：profiles / privacy_settings / agreements / review_cases /
-review_decisions / appeals / appeal_events / inbox_mails / report_drafts /
-report_sents / mail_sent_ledger / audit_events / followups / resources。
-其中 agreements / appeal_events / followups / audit_events 为 v2.0.0 新增能力
-（P4 启用 DAL；表结构先行落地，避免重写中途改 schema）。
+- 业务库 business.db 与 LangGraph checkpoint 库分文件：schema 所有权、备份/迁移
+  节奏、保留期治理皆不同，互不干扰。
+- 连接模型：每个数据库文件每进程一连接（check_same_thread=False）+ 每连接一把
+  RLock 串行化——与 SqliteSaver 同构；PRAGMA WAL + busy_timeout=5000 +
+  foreign_keys=ON。因此生产只能跑单 worker。
+- 除 checkpoint 外一切业务持久化经本包；services/web 不直接开文件。
+- 路径收口：全部 DAL 经 resolve_db_path() 解析（显式参数 → 各自环境变量 →
+  BUSINESS_DB_PATH → data/private/business.db）。
+- audit_events 为 append-only：触发器在库级禁止 UPDATE/DELETE。
+- review_cases 部分唯一索引 UNIQUE(thread_id) WHERE status='pending'：
+  同一 thread 未闭环不重复开案，跨进程双登记也被数据库层拦截。
 """
 
 from __future__ import annotations
@@ -191,9 +183,8 @@ _REGISTRY_LOCK = threading.Lock()
 
 
 def resolve_db_path(explicit: str | None, env_name: str) -> Path:
-    """路径收口（重写计划 §21 新发现②）：显式参数 → 专属环境变量 → BUSINESS_DB_PATH → 缺省。
+    """显式参数 → 专属环境变量 → BUSINESS_DB_PATH → 缺省。
 
-    环境变量名与旧 JSON store 完全一致（conftest 的隔离重定向无需改动）；
     生产不设任何变量时全部 store 汇入同一 business.db（统一存储）。
     """
     raw = explicit or os.environ.get(env_name, "") or os.environ.get("BUSINESS_DB_PATH", "")
@@ -222,7 +213,7 @@ def connect(path: str | Path) -> tuple[sqlite3.Connection, threading.RLock]:
 
 
 def close_all() -> None:
-    """关闭全部缓存连接（测试清理用；生产进程退出即释放）。"""
+    """关闭全部缓存连接（生产进程退出即释放）。"""
     with _REGISTRY_LOCK:
         for conn, _lock in _CONNECTIONS.values():
             try:
@@ -245,7 +236,7 @@ def record_audit(
 ) -> None:
     """追加一条审计事件（append-only，触发器兜底禁改禁删）。
 
-    kind 取值（P4 起使用）：retention_changed / data_exported / data_deleted / purge_executed 等。
+    kind 取值：retention_changed / data_exported / data_deleted / purge_executed 等。
     """
     with lock:
         conn.execute(

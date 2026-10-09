@@ -1,19 +1,8 @@
-"""申诉与投诉举报受理 DAL（《办法》第 21 条；TC-PRIV-006 / TC-RES-002）——SQLite 版。
+"""申诉与投诉举报受理 DAL（《办法》第 21 条）：appeals / appeal_events 表。
 
-设计取舍（v2.0.0 存储层 P1）：
-- 公开 API 与旧 lightcloudmaster/appeals.py 完全一致：类名 / 方法签名 / AppealError 与
-  中文错误文案 / 返回 dict 的键序与语义，调用方零改动切换；APPEAL_KINDS 复制进
-  本模块使其自包含（旧模块 P3 才删，暂时允许重复）。
-- 落库为统一业务库 business.db 的 appeals 表（db.py §16 DDL）；旧 JSONL「逐行追加」
-  语义 ≙ INSERT——append-only、并发安全（每库一连接 + RLock 串行化）。
-- appeal_events 表（受理后的处置轨迹）自 v2.0.0 P4 起启用：submit 同事务落 received
-  事件（受理即留痕）；add_event 追加处置动作（processing/resolved/rejected 同步翻
-  appeals.status，received 只记事件不改状态——「已受理」是提交即成立的事实）。
-  当前无 API 路由消费处置轨迹（24 路由清单封闭），add_event/events/list_open 是
-  运维/后续界面通道——能力先落库，红线是事件只记动作与备注、不落任何对话内容。
-- 隐私最小化红线不变：仅记录申诉所需最小字段，不含姓名/联系方式。
-- 约定：SQL 一律 ? 参数化；写方法 with self._lock: 执行 + conn.commit()；
-  时间戳一律 db.now_iso()；本模块无布尔列。
+submit 同事务落 received 事件（受理即留痕）；add_event 追加处置动作，
+processing/resolved/rejected 同步翻 appeals.status，received 只记事件不改状态。
+红线：仅记录申诉所需最小字段，不含姓名/联系方式，不落任何对话内容。
 """
 
 from __future__ import annotations
@@ -51,8 +40,6 @@ class AppealStore:
 
     def __init__(self, path: str | None = None):
         self._path = db.resolve_db_path(path, "APPEAL_DB_PATH")
-        # 与旧 store 一致：初始化即确保父目录存在（缺省 data/private 可能尚未创建），
-        # 再取进程级共享连接与锁（同一 business.db 全 DAL 复用一条连接）。
         self._path.parent.mkdir(parents=True, exist_ok=True)
         self._conn, self._lock = db.connect(self._path)
 
@@ -89,7 +76,7 @@ class AppealStore:
                     record["status"],
                 ),
             )
-            # 受理即留痕：received 事件与工单同一事务落库（提交不可能「无痕受理」）。
+            # 受理即留痕：received 事件与工单同一事务落库。
             self._conn.execute(
                 "INSERT INTO appeal_events (ticket_id, action, actor, note, acted_at) VALUES (?, ?, ?, ?, ?)",
                 (record["ticket_id"], "received", "system", "申诉提交入库", record["submitted_at"]),
@@ -100,8 +87,7 @@ class AppealStore:
     def add_event(self, ticket_id: str, action: str, *, actor: str = "", note: str = "") -> dict[str, Any]:
         """追加处置事件；processing/resolved/rejected 同步翻转工单状态（同事务）。
 
-        工单不存在时报错（不允许给幽灵工单造轨迹）；received 只记事件——它由 submit
-        自动产生，人工重放不改变「已受理」这一既成事实。
+        工单不存在时报错；received 只记事件——「已受理」是提交即成立的事实。
         """
         if action not in APPEAL_ACTIONS:
             raise AppealError(f"不支持的申诉处置动作: {action}")
@@ -129,7 +115,7 @@ class AppealStore:
         }
 
     def events(self, ticket_id: str) -> list[dict[str, Any]]:
-        """该工单的处置轨迹（按事件序）——处理进度对用户/监管可解释的依据。"""
+        """该工单的处置轨迹（按事件序）。"""
         with self._lock:
             rows = self._conn.execute(
                 "SELECT id, ticket_id, action, actor, note, acted_at FROM appeal_events"
@@ -149,7 +135,7 @@ class AppealStore:
         ]
 
     def list_open(self) -> list[dict[str, Any]]:
-        """未办结申诉（status 非 resolved/rejected），按受理序——运营处置队列视图。"""
+        """未办结申诉（status 非 resolved/rejected），按受理序。"""
         with self._lock:
             rows = self._conn.execute(
                 "SELECT ticket_id, submitted_at, kind, kind_label, text, profile_key, status"

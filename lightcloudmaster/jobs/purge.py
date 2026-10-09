@@ -1,17 +1,14 @@
-"""保留期到期清除执行器（v2.0.0 P7，ADR-011 §6）：jobs.run_purge。
+"""保留期到期清除执行器：run_purge。
 
-修「到期假删除」：旧版 PrivacyStore.purge_schedule 只**计算**到期时间、从不执行
-删除，保留期承诺形同虚设。本执行器扫描全部已落库保留期键，对到期者执行四件套：
-
+扫描全部已落库保留期键，对到期者执行四件套：
 1) 图 thread 删除（checkpointer.delete_thread，尽力而为）；
 2) 画像删除（profiles.delete，reason=retention_purge，落 data_deleted 审计）；
 3) 保留期记录清除（privacy.forget）；
 4) 报告草稿与发送台账清除（reports.delete_for_profile）。
 
-隐私红线：删除范围 = 会话数据（thread / 画像 / 保留期记录 / 报告台账）；
-**申诉台账不参与**——申诉是运营数据、有独立处理期（《办法》第 21 条），且其中不含
-可指向个体的会话内容；audit_events 本身 append-only 不可删（这正是它能证明
-「删除确实发生过」的原因）。
+隐私红线：删除范围 = 会话数据；申诉台账不参与（运营数据、有独立处理期，
+且不含可指向个体的会话内容）；audit_events 本身 append-only 不可删——这正是它能
+证明「删除确实发生过」的原因。
 """
 
 from __future__ import annotations

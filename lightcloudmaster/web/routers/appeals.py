@@ -1,4 +1,4 @@
-"""申诉端点（v2.0.0 P3，《办法》第 21 条 / TC-PRIV-006）：POST /api/appeal。
+"""申诉端点（《办法》第 21 条）：POST /api/appeal。
 
 四类申诉词表与受理台账（append-only、可审计）在 storage.appeals；本层只翻译
 AppealError → 400。红线：仅记录申诉所需最小字段，不含姓名/联系方式。
