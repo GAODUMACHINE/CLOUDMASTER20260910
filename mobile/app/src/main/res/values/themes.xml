@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 系统主题即可：单 Activity 全屏 WebView，无需 AndroidX。 -->
+    <style name="AppTheme" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">@color/brand_light</item>
+        <item name="android:navigationBarColor">@color/brand_light</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>

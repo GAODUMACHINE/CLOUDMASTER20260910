@@ -18,3 +18,5 @@ dist/
 # IDE
 .idea/
 .vscode/
+# Android 客户端本地构建工具链（mobile/ 内部有自己的 .gitignore）
+.toolkit/

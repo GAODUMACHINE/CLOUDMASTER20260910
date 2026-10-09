@@ -1,0 +1,50 @@
+plugins {
+    id 'com.android.application'
+}
+
+// 与仓库根目录一致：模块无任何第三方依赖，仅使用系统 WebView。
+android {
+    namespace 'top.lightcloudmaster.app'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "top.lightcloudmaster.app"
+        minSdk 26          // Android 8.0+：自适应图标用纯矢量，无需 PNG 兜底
+        targetSdk 34
+        versionCode 1
+        versionName "1.0.0"
+    }
+
+    // 签名信息不进 git（keystore.properties / *.keystore 均在 .gitignore 中）。
+    // 本地没有 keystore.properties 时，release 构建自动退回 debug 签名，方便试装。
+    def ksProps = new Properties()
+    def ksFile = rootProject.file('app/keystore.properties')
+    if (ksFile.exists()) {
+        ksFile.withInputStream { ksProps.load(it) }
+    }
+
+    signingConfigs {
+        release {
+            if (ksFile.exists()) {
+                storeFile rootProject.file(ksProps['storeFile'])
+                storePassword ksProps['storePassword']
+                keyAlias ksProps['keyAlias']
+                keyPassword ksProps['keyPassword']
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false      // 无依赖、单 Activity，无需混淆裁剪
+            if (ksFile.exists()) {
+                signingConfig signingConfigs.release
+            }
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

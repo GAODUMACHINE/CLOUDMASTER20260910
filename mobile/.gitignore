@@ -1,0 +1,11 @@
+# 构建产物
+.gradle/
+build/
+app/build/
+local.properties
+release/
+
+# 签名材料（绝不能进公开仓库：泄漏即任何人可冒名发升级包）
+app/keystore.properties
+app/*.keystore
+app/*.jks

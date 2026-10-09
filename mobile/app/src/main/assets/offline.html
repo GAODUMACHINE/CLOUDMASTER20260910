@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>网络不可用 · 拾光云上</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: #F6F9FB; color: #35424d;
+    font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) { body { background: #D9DEE2; color: #2b343d; } }
+  .card { text-align: center; padding: 32px; }
+  .cloud { font-size: 56px; line-height: 1; margin-bottom: 16px; }
+  h1 { font-size: 18px; margin: 0 0 8px; }
+  p { font-size: 14px; margin: 0 0 24px; opacity: .75; }
+  button {
+    appearance: none; border: 0; border-radius: 999px; padding: 12px 36px;
+    font-size: 15px; color: #fff; background: #4a90d9;
+  }
+  button:active { opacity: .8; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="cloud">☁️</div>
+    <h1>暂时连不上拾光云上</h1>
+    <p>请检查网络连接后重试</p>
+    <button onclick="retry()">重新连接</button>
+  </div>
+<script>
+  function retry() {
+    var u = '';
+    try { u = decodeURIComponent(new URLSearchParams(location.search).get('u') || ''); } catch (e) {}
+    location.replace(u || 'https://www.lightcloudmaster.top/');
+  }
+</script>
+</body>
+</html>

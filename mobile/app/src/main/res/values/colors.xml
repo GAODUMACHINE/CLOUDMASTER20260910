@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 与站点 theme-color 保持一致（frontend/cloud-glass/index.html）。 -->
+    <color name="brand_light">#F6F9FB</color>
+    <color name="brand_dark">#D9DEE2</color>
+    <color name="ic_launcher_background">#7EB8E8</color>
+</resources>

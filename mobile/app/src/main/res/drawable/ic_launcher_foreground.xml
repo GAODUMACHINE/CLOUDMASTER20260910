@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 自适应图标前景：白云 + 一束拾起的微光（108dp 画布，安全区 66dp）。 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="2.75"
+        android:scaleY="2.75"
+        android:translateX="21"
+        android:translateY="21">
+        <!-- Material 「cloud」路径（24dp 原始画布） -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M19.35,10.04C18.67,6.59 15.64,4 12,4 9.11,4 6.6,5.64 5.35,8.04 2.34,8.36 0,10.91 0,14c0,3.31 2.69,6 6,6h13c2.76,0 5,-2.24 5,-5 0,-2.64 -2.05,-4.78 -4.65,-4.96z" />
+    </group>
+    <!-- 四角星：拾光 -->
+    <path
+        android:fillColor="#FFE082"
+        android:pathData="M73,24 L75.6,31.4 L83,34 L75.6,36.6 L73,44 L70.4,36.6 L63,34 L70.4,31.4 Z" />
+</vector>

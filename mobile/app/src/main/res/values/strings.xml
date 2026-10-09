@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">拾光云上</string>
+    <string name="no_external_app">未找到可打开该链接的应用</string>
+    <string name="saved_to">已保存：%1$s</string>
+    <string name="save_failed">保存失败，请重试</string>
+</resources>

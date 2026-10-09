@@ -1,0 +1,4 @@
+// 根工程：唯一插件是 AGP，业务代码零第三方依赖（纯系统 WebView）。
+plugins {
+    id 'com.android.application' version '8.5.2' apply false
+}
